@@ -1,0 +1,17 @@
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+# 本地数据库
+prisma/dev.db
+prisma/dev.db-journal
+
+# 上传的认证材料（隐私，不入库不入 git）
+uploads/*
+!uploads/.gitkeep
+
+# 环境变量
+.env
+.env.local

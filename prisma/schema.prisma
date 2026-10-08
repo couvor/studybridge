@@ -1,0 +1,144 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// 角色：TUTOR 教员 / PARENT 家长 / ADMIN 平台运营
+model User {
+  id           String         @id @default(cuid())
+  role         String
+  email        String         @unique
+  passwordHash String
+  name         String
+  phone        String         @default("")
+  createdAt    DateTime       @default(now())
+  tutorProfile TutorProfile?
+  demands      Demand[]
+  parentOrders Order[]        @relation("ParentOrders")
+  notifications Notification[]
+}
+
+// 科目分类：LANGUAGE 语言 / CODING 编程 / ART 艺术 / SPORT 体育 / UNI_COURSE 大学课业 / EXAM 考试考证
+model Subject {
+  id       String         @id @default(cuid())
+  name     String         @unique
+  category String
+  tutors   TutorProfile[] @relation("TutorSubjects")
+  demands  Demand[]
+}
+
+model TutorProfile {
+  id             String        @id @default(cuid())
+  userId         String        @unique
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  university     String        @default("")
+  major          String        @default("")
+  grade          String        @default("")
+  bio            String        @default("")
+  availableTime  String        @default("")
+  mode           String        @default("BOTH") // ONLINE | OFFLINE | BOTH
+  region         String        @default("")
+  studentCardUrl String        @default("") // 学生证照片（存 uploads/，仅管理员与本人可见）
+  transcriptUrl  String        @default("") // 成绩单
+  auditStatus    String        @default("PENDING") // PENDING | APPROVED | REJECTED
+  auditNote      String        @default("")
+  ratingAvg      Float         @default(0)
+  ratingCount    Int           @default(0)
+  applications   Application[]
+  tutorOrders    Order[]       @relation("TutorOrders")
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  subjects       Subject[]     @relation("TutorSubjects")
+}
+
+// 求教单：status OPEN 撮合中 / MATCHED 已成单 / CLOSED 已关闭
+// reviewStatus：需求进入需求大厅前需运营审核 PENDING | APPROVED | REJECTED
+model Demand {
+  id           String        @id @default(cuid())
+  code         String        @unique
+  parentId     String
+  parent       User          @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  subjectId    String
+  subject      Subject       @relation(fields: [subjectId], references: [id])
+  learnerGrade String        // 学员年级
+  mode         String        // ONLINE | OFFLINE
+  region       String        @default("")
+  frequency    String        @default("")
+  budgetNote   String        @default("") // 预算仅文字备注，平台不定价
+  description  String        @default("")
+  status       String        @default("OPEN")
+  reviewStatus String        @default("PENDING")
+  auditNote    String        @default("")
+  applications Application[]
+  orders       Order[]
+  createdAt    DateTime      @default(now())
+}
+
+model Application {
+  id        String   @id @default(cuid())
+  demandId  String
+  demand    Demand   @relation(fields: [demandId], references: [id], onDelete: Cascade)
+  tutorId   String
+  tutor     TutorProfile @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+  message   String   @default("")
+  status    String   @default("PENDING") // PENDING | ACCEPTED | REJECTED
+  createdAt DateTime @default(now())
+
+  @@unique([demandId, tutorId])
+}
+
+// 撮合单：feeType / feeAmount 为商业模式预留字段，当前一律免费（NONE / 0）
+model Order {
+  id            String     @id @default(cuid())
+  code          String     @unique
+  demandId      String
+  demand        Demand     @relation(fields: [demandId], references: [id])
+  parentId      String
+  parent        User       @relation("ParentOrders", fields: [parentId], references: [id])
+  tutorId       String
+  tutor         TutorProfile @relation("TutorOrders", fields: [tutorId], references: [id])
+  status        String     @default("ACTIVE") // ACTIVE | FINISHED | CANCELLED
+  feeType       String     @default("NONE") // NONE | AGENCY_ONE_TIME（预留）
+  feeAmount     Float      @default(0) // 预留：一次性中介服务费
+  matchSource   String     @default("PARENT_ACCEPT") // PARENT_ACCEPT | ADMIN_RECOMMEND
+  startedAt     DateTime   @default(now())
+  finishedAt    DateTime?
+  lessonLogs    LessonLog[]
+  reviews       Review[]
+}
+
+model LessonLog {
+  id        String   @id @default(cuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  date      DateTime
+  hours     Float
+  feedback  String   @default("")
+  createdAt DateTime @default(now())
+}
+
+// 双向评价：authorRole PARENT 家长评教员 / TUTOR 教员评家长
+model Review {
+  id         String   @id @default(cuid())
+  orderId    String
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  authorRole String
+  rating     Int
+  comment    String   @default("")
+  createdAt  DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  content   String
+  link      String   @default("")
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}

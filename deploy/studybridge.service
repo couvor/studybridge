@@ -1,0 +1,26 @@
+[Unit]
+Description=StudyBridge 家教撮合平台（studybridge · 38081）
+After=network.target
+
+[Service]
+Type=simple
+User=www
+Group=www
+WorkingDirectory=/www/wwwroot/studybridge
+ExecStart=/usr/local/bin/node /www/wwwroot/studybridge/node_modules/next/dist/bin/next start -H 0.0.0.0 -p 38081
+EnvironmentFile=/www/wwwroot/studybridge/.env
+Restart=always
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=studybridge
+
+# 安全加固（与 loginapp 同规格）
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/www/wwwroot/studybridge
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,6 @@
+[Unit]
+Description=刷新学桥的大陆 IP 网段清单（访问控制用）
+
+[Service]
+Type=oneshot
+ExecStart=/www/wwwroot/studybridge/scripts/allow-overseas-only.sh refresh
