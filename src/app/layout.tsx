@@ -14,7 +14,7 @@ export const metadata: Metadata = {
     "学桥是一座桥：一端是经过认证的大学生教员，一端是正在寻找陪伴式辅导的家庭。平台仅提供信息撮合服务。",
 };
 
-const themeScript = `(function(){try{var t=localStorage.getItem('sb-theme');if(t==='light'){document.documentElement.classList.add('light')}}catch(e){}})()`;
+const themeScript = `(function(){try{var t=localStorage.getItem('sb-theme');if(t!=='dark'){document.documentElement.classList.add('light')}}catch(e){document.documentElement.classList.add('light')}})()`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
