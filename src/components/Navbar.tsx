@@ -63,15 +63,15 @@ export default function Navbar({ session, unread = 0 }: { session: NavSession; u
                     <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-accent-soft shadow-[0_0_8px_var(--accent-soft)]" />
                   )}
                 </Link>
-                <Link href={home} className="hidden sm:inline-flex btn btn-sm">
+                <Link href={home} className="hidden md:inline-flex btn btn-sm">
                   {consoleLabel}
                 </Link>
-                <form action={logoutAction} className="hidden sm:block">
+                <form action={logoutAction} className="hidden md:block">
                   <button className="btn btn-sm btn-ghost" title={`已登录：${session.name}`}>退出</button>
                 </form>
               </>
             ) : (
-              <div className="hidden sm:flex items-center gap-2">
+              <div className="hidden md:flex items-center gap-2">
                 <Link href="/login" className="btn btn-sm btn-ghost">登录</Link>
                 <Link href="/register" className="btn btn-sm btn-primary">注册</Link>
               </div>
