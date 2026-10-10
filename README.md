@@ -112,6 +112,10 @@ ADMIN 角色、跳过选身份直进 `/admin`；当前白名单：`couv`、`zhou
 ⚠️ 若某白名单账号要从 login 服务删除，务必同步把它从白名单移除（否则该用户名被他人注册后会误获运营权限）。
 登录页已无本地表单；本地 `admin@studybridge.cn` 保留在库中备用（login 服务故障时可临时恢复表单入口，或直接运维处理）。
 
+**退出（2026-10-10 定稿）**：退出时清 `sb_session` / `sb_gate` / `sb_sso_state` 三个 cookie，
+并**联动注销明旸账号会话**（跳 login 服务 `/logout?next=…`，白名单校验后回学桥）——
+实现「真·重新认证」：再次登录必须重走门禁 + 明旸密码 + 动态口令。
+
 **安全要点**：ticket 一次性 + 60 秒 + 绑定 client_id/redirect_uri；`/sso/verify` 常数时间比对
 secret（sha256 存储于 login 服务库，明文只在本站点 .env）、失败按 client_id+IP 限频；state 防 CSRF；
 redirect_uri 白名单精确匹配；SSO 用户访问 `/admin` 一律被角色中间件拒绝。

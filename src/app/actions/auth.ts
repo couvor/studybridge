@@ -87,6 +87,13 @@ export async function logoutAction() {
   jar.delete(SESSION_COOKIE);
   jar.delete(GATE_COOKIE);
   jar.delete("sb_sso_state");
+  // 联动注销明旸账号会话（真·重新认证：下次登录需重走密码 + 动态口令）；
+  // login 服务校验回跳白名单后回到学桥。env 缺失时降级为本地退出。
+  const issuer = process.env.SSO_ISSUER;
+  const origin = process.env.SITE_ORIGIN;
+  if (issuer && origin) {
+    redirect(`${issuer}/logout?next=${encodeURIComponent(origin + "/")}`);
+  }
   redirect("/");
 }
 
