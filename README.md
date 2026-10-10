@@ -6,7 +6,7 @@
 ## 技术栈
 
 - Next.js 15（App Router）+ TypeScript + React 19
-- Tailwind CSS v4（编辑志设计体系：**默认亮色优先**、`.dark` 类切换暗色（仅遵循用户显式选择）、衬线大标题、发丝线分区、玻璃导航、滚动动效）
+- Tailwind CSS v4（编辑志设计体系：全站默认亮色优先、可切换暗色、衬线大标题、发丝线分区、玻璃导航、滚动动效）
 - Prisma + SQLite（schema 按 Postgres 可迁移写法）
 - 认证：jose JWT（HttpOnly Cookie）+ bcryptjs，三角色 PARENT / TUTOR / ADMIN
 
