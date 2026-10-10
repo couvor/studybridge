@@ -11,9 +11,11 @@ export async function GET(req: Request) {
   const issuer = process.env.SSO_ISSUER;
   const clientId = process.env.SSO_CLIENT_ID;
   const redirectUri = process.env.SSO_REDIRECT_URI;
+  // 跳转不落缓存：URL 带 state 令牌，且该响应本身是登录链路一环
+  const noStore = { "Cache-Control": "no-store" } as const;
   if (!issuer || !clientId || !redirectUri) {
     // 相对 Location（反代下 req.url 不可用于拼绝对地址）
-    return new Response(null, { status: 307, headers: { Location: "/login?error=5" } });
+    return new Response(null, { status: 307, headers: { Location: "/login?error=5", ...noStore } });
   }
   const state = randomBytes(16).toString("hex");
   // 服务端留存 state（1 小时），回调时即使客户端 cookie 丢失/过期也能校验通过
@@ -30,5 +32,7 @@ export async function GET(req: Request) {
   url.searchParams.set("client_id", clientId);
   url.searchParams.set("redirect_uri", redirectUri);
   url.searchParams.set("state", state);
-  return NextResponse.redirect(url);
+  const res = NextResponse.redirect(url);
+  res.headers.set("Cache-Control", "no-store");
+  return res;
 }

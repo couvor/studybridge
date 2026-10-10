@@ -9,8 +9,9 @@ export const dynamic = "force-dynamic";
 
 // 相对 Location 重定向：反代场景下应用内部拿到的 req.url 是 127.0.0.1:38081，
 // 不能用它拼绝对地址，否则浏览器会被引到 localhost。相对 Location 由浏览器按当前源解析。
+// no-store：回调 URL 带一次性 ticket，禁止任何中间层/浏览器缓存。
 const redirectTo = (path: string) =>
-  new Response(null, { status: 307, headers: { Location: path } });
+  new Response(null, { status: 307, headers: { Location: path, "Cache-Control": "no-store" } });
 
 // SSO 回调：比对 state → 服务端向 login 服务换身份 → 映射本地用户 → 建立学桥会话
 const fail = (code: string) => redirectTo(`/login?error=${code}&t=${Date.now()}`);
