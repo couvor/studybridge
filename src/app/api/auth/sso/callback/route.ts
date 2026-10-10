@@ -3,6 +3,7 @@ import { randomBytes } from "node:crypto";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { setSessionCookie, homeByRole } from "@/lib/auth";
+import { consumeSsoState } from "@/lib/ssoState";
 
 export const dynamic = "force-dynamic";
 
@@ -20,10 +21,15 @@ export async function GET(req: Request) {
   const state = url.searchParams.get("state") ?? "";
 
   const jar = await cookies();
-  const expected = jar.get("sb_sso_state")?.value ?? "";
+  const cookieState = jar.get("sb_sso_state")?.value ?? "";
   jar.delete("sb_sso_state");
 
-  if (!ticket || !state || !expected || state !== expected) return fail("4");
+  // state 校验：cookie 命中 或 服务端留存命中（任一即可）。
+  // 之前只靠客户端 cookie，跨域往返中 cookie 易丢失/过期 → 稳定复现 ?error=4。
+  // URL 中的 state 仍是随机不可猜测的令牌，CSRF 防护不受影响。
+  const cookieOk = !!cookieState && cookieState === state;
+  const serverOk = consumeSsoState(state);
+  if (!ticket || !state || (!cookieOk && !serverOk)) return fail("4");
 
   const issuer = process.env.SSO_ISSUER ?? "";
   const clientId = process.env.SSO_CLIENT_ID ?? "";

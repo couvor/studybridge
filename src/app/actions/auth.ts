@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { setSessionCookie, clearSessionCookie, homeByRole, cookieSecure, getSession } from "@/lib/auth";
-import { signGate, GATE_COOKIE } from "@/lib/jwt";
+import { signGate, GATE_COOKIE, SESSION_COOKIE } from "@/lib/jwt";
 import { verifyTurnstile } from "@/lib/turnstile";
 
 export async function gateAction(fd: FormData) {
@@ -82,7 +82,11 @@ export async function registerAction(fd: FormData) {
 }
 
 export async function logoutAction() {
-  await clearSessionCookie();
+  const jar = await cookies();
+  // 退出要清干净：会话、站点门禁、SSO 握手态，否则下次访问仍免门禁/免密
+  jar.delete(SESSION_COOKIE);
+  jar.delete(GATE_COOKIE);
+  jar.delete("sb_sso_state");
   redirect("/");
 }
 
