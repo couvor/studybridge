@@ -7,17 +7,41 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { push } from "@/lib/notify";
+import { cosConfigured, putObjectBuffer, uidTag } from "@/lib/cos";
 
 const UPLOAD_DIR = path.join(process.cwd(), "uploads");
+
+// 浏览器直传产物名（含上传者标签，防止伪造指向他人材料）
+const DIRECT_NAME_RE = /^(card|transcript)-u[a-f0-9]{8}-[0-9]{10,16}-[a-f0-9]{4,10}\.[a-z0-9]{2,8}$/i;
 
 async function saveUpload(file: File | null, prefix: string): Promise<string> {
   if (!file || file.size === 0) return "";
   if (file.size > 10 * 1024 * 1024) throw new Error("文件过大");
   const ext = file.name.match(/\.[a-zA-Z0-9]+$/)?.[0]?.slice(0, 8) ?? "";
   const safe = `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext}`;
+  if (cosConfigured()) {
+    // 非文本数据一律进 COS（浏览器直传失败时的服务端中转回退）
+    await putObjectBuffer(safe, Buffer.from(await file.arrayBuffer()));
+    return safe;
+  }
   await mkdir(UPLOAD_DIR, { recursive: true });
   await writeFile(path.join(UPLOAD_DIR, safe), Buffer.from(await file.arrayBuffer()));
   return safe;
+}
+
+// 读取本次提交的材料：优先浏览器直传产物（隐藏 key），否则回退文件本体
+async function resolveUpload(fd: FormData, kind: "card" | "transcript", uid: string): Promise<string> {
+  const key = String(fd.get(kind === "card" ? "studentCardKey" : "transcriptKey") ?? "").trim();
+  if (
+    key &&
+    DIRECT_NAME_RE.test(key) &&
+    key.toLowerCase().startsWith(kind) &&
+    key.includes(`-u${uidTag(uid)}-`) &&
+    cosConfigured()
+  ) {
+    return key;
+  }
+  return saveUpload(fd.get(kind) as File | null, kind);
 }
 
 export async function updateTutorProfileAction(fd: FormData) {
@@ -35,10 +59,8 @@ export async function updateTutorProfileAction(fd: FormData) {
   const subjectIds = fd.getAll("subjects").map(String).filter(Boolean);
   const phone = String(fd.get("phone") ?? "").trim();
 
-  const card = fd.get("studentCard") as File | null;
-  const transcript = fd.get("transcript") as File | null;
-  const cardName = await saveUpload(card, "card");
-  const transcriptName = await saveUpload(transcript, "transcript");
+  const cardName = await resolveUpload(fd, "card", s.uid);
+  const transcriptName = await resolveUpload(fd, "transcript", s.uid);
 
   // 重新提交认证材料则回到待审核；仅编辑文字不重置认证状态
   const hasNewMaterial = cardName || transcriptName;

@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { updateTutorProfileAction } from "@/app/actions/tutor";
 import { AUDIT_STATUS, CATEGORY_LABEL, CATEGORY_ORDER } from "@/lib/constants";
+import MaterialUpload from "@/components/MaterialUpload";
 
 export const metadata = { title: "档案与认证 · 学桥" };
 
@@ -120,18 +121,20 @@ export default async function TutorProfilePage({
             <p className="help mb-4">JPG / PNG / PDF，单张 10MB 以内。材料仅平台审核可见，不对外展示。</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            <div>
-              <label className="label" htmlFor="studentCard">
-                学生证 {profile.studentCardUrl && <span className="text-accent-soft normal-case tracking-normal">✓ 已上传</span>}
-              </label>
-              <input id="studentCard" name="studentCard" type="file" accept="image/*,.pdf" className="input !py-2.5 file:mr-3 file:btn-sm file:border-0 file:bg-transparent file:text-accent-soft file:cursor-pointer" />
-            </div>
-            <div>
-              <label className="label" htmlFor="transcript">
-                成绩单 {profile.transcriptUrl && <span className="text-accent-soft normal-case tracking-normal">✓ 已上传</span>}
-              </label>
-              <input id="transcript" name="transcript" type="file" accept="image/*,.pdf" className="input !py-2.5 file:mr-3 file:btn-sm file:border-0 file:bg-transparent file:text-accent-soft file:cursor-pointer" />
-            </div>
+            <MaterialUpload
+              kind="card"
+              fieldName="studentCard"
+              keyField="studentCardKey"
+              label="学生证"
+              uploaded={!!profile.studentCardUrl}
+            />
+            <MaterialUpload
+              kind="transcript"
+              fieldName="transcript"
+              keyField="transcriptKey"
+              label="成绩单"
+              uploaded={!!profile.transcriptUrl}
+            />
           </div>
         </div>
 

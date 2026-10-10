@@ -8,6 +8,8 @@ datasource db {
 }
 
 // 角色：TUTOR 教员 / PARENT 家长 / ADMIN 平台运营
+// authSource：LOCAL 本地密码登录（运营/演示）| SSO 明旸账号登录
+// ssoSub：login.mingyanginfo.com 的用户 ID；rolePending：SSO 首登待选角色
 model User {
   id           String         @id @default(cuid())
   role         String
@@ -15,6 +17,9 @@ model User {
   passwordHash String
   name         String
   phone        String         @default("")
+  ssoSub       String?        @unique
+  authSource   String         @default("LOCAL")
+  rolePending  Boolean        @default(false)
   createdAt    DateTime       @default(now())
   tutorProfile TutorProfile?
   demands      Demand[]

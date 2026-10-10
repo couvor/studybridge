@@ -3,6 +3,7 @@ import { readFile, stat } from "fs/promises";
 import path from "path";
 import { getSession } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { cosConfigured, getObjectBuffer } from "@/lib/cos";
 
 const UPLOAD_DIR = path.join(process.cwd(), "uploads");
 
@@ -35,12 +36,22 @@ export async function GET(_req: Request, { params }: { params: Promise<{ name: s
   }
 
   const file = path.join(UPLOAD_DIR, name);
-  try {
-    await stat(file);
-  } catch {
-    return new NextResponse("Not found", { status: 404 });
+  let buf: Buffer | null = null;
+  if (cosConfigured()) {
+    try {
+      buf = await getObjectBuffer(name);
+    } catch {
+      buf = null; // 落 COS 失败时回退本地（历史文件）
+    }
   }
-  const buf = await readFile(file);
+  if (!buf) {
+    try {
+      await stat(file);
+      buf = await readFile(file);
+    } catch {
+      return new NextResponse("Not found", { status: 404 });
+    }
+  }
   const ext = path.extname(name).toLowerCase();
   return new NextResponse(new Uint8Array(buf), {
     headers: {

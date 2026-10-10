@@ -12,6 +12,7 @@ export type SessionPayload = {
   uid: string;
   role: "PARENT" | "TUTOR" | "ADMIN";
   name: string;
+  rp?: boolean; // SSO 首登待选角色（rolePending）
 };
 
 export async function signSession(p: SessionPayload) {
@@ -27,7 +28,12 @@ export async function verifySessionToken(token?: string): Promise<SessionPayload
   try {
     const { payload } = await jwtVerify(token, secret());
     if (!payload.uid || !payload.role) return null;
-    return { uid: String(payload.uid), role: payload.role as SessionPayload["role"], name: String(payload.name ?? "") };
+    return {
+      uid: String(payload.uid),
+      role: payload.role as SessionPayload["role"],
+      name: String(payload.name ?? ""),
+      rp: payload.rp === true,
+    };
   } catch {
     return null;
   }

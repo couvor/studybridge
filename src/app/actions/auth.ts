@@ -4,15 +4,20 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
-import { setSessionCookie, clearSessionCookie, homeByRole, cookieSecure } from "@/lib/auth";
+import { setSessionCookie, clearSessionCookie, homeByRole, cookieSecure, getSession } from "@/lib/auth";
 import { signGate, GATE_COOKIE } from "@/lib/jwt";
+import { verifyTurnstile } from "@/lib/turnstile";
 
 export async function gateAction(fd: FormData) {
   const pwd = String(fd.get("password") ?? "");
   const nextRaw = String(fd.get("next") ?? "/");
-  const safeNext = nextRaw.startsWith("/") ? nextRaw : "/";
+  // 仅接受站内路径；排除 // 开头的协议相对地址（防开放重定向）
+  const safeNext = nextRaw.startsWith("/") && !nextRaw.startsWith("//") ? nextRaw : "/";
   const qs =
     (safeNext !== "/" ? `next=${encodeURIComponent(safeNext)}&` : "") + `t=${Date.now()}`;
+  if (!(await verifyTurnstile(fd.get("cf-turnstile-response"), "sb-gate"))) {
+    redirect(`/gate?error=2&${qs}`);
+  }
   if (!process.env.GATE_PASSWORD || pwd !== process.env.GATE_PASSWORD) {
     redirect(`/gate?error=1&${qs}`);
   }
@@ -30,7 +35,14 @@ export async function gateAction(fd: FormData) {
 export async function loginAction(fd: FormData) {
   const email = String(fd.get("email") ?? "").trim().toLowerCase();
   const password = String(fd.get("password") ?? "");
+  if (!(await verifyTurnstile(fd.get("cf-turnstile-response"), "sb-login"))) {
+    redirect(`/login?error=2&t=${Date.now()}`);
+  }
   const user = await db.user.findUnique({ where: { email } });
+  if (user && user.authSource === "SSO") {
+    // SSO 账号必须走明旸账号登录，本地密码不可用
+    redirect(`/login?error=3&t=${Date.now()}`);
+  }
   if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
     redirect(`/login?error=1&t=${Date.now()}`);
   }
@@ -47,6 +59,9 @@ export async function registerAction(fd: FormData) {
   const back = (code: string) =>
     redirect(`/register?role=${role}&error=${code}&t=${Date.now()}`);
 
+  if (!(await verifyTurnstile(fd.get("cf-turnstile-response"), "sb-register"))) {
+    return back("captcha");
+  }
   if (!name || !email || !password) return back("empty");
   if (password.length < 6) return back("short");
   const exists = await db.user.findUnique({ where: { email } });
@@ -69,4 +84,23 @@ export async function registerAction(fd: FormData) {
 export async function logoutAction() {
   await clearSessionCookie();
   redirect("/");
+}
+
+// SSO 首登选角色（家长 / 教员）：仅待选状态可用，选择后写入会话
+export async function chooseRoleAction(fd: FormData) {
+  const s = await getSession();
+  if (!s) redirect("/login");
+  if (!s.rp) redirect(homeByRole(s.role));
+  const role = String(fd.get("role") ?? "PARENT") === "TUTOR" ? "TUTOR" : "PARENT";
+  const existingProfile = await db.tutorProfile.findUnique({ where: { userId: s.uid } });
+  await db.user.update({
+    where: { id: s.uid },
+    data: {
+      role,
+      rolePending: false,
+      ...(role === "TUTOR" && !existingProfile ? { tutorProfile: { create: {} } } : {}),
+    },
+  });
+  await setSessionCookie({ uid: s.uid, role, name: s.name });
+  redirect(homeByRole(role));
 }

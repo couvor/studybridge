@@ -34,9 +34,19 @@ export default function Footer() {
         </div>
         <div className="mt-12 pt-6 border-t border-line flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <p className="mono text-[10px] tracking-[0.2em] text-dim">
-            © 2026 STUDYBRIDGE · INFORMATION MATCHING ONLY
+            © 2026 STUDYBRIDGE · 西安明旸信息技术有限公司
           </p>
-          <p className="mono text-[10px] tracking-[0.2em] text-dim">信息撮合 · 不涉学科培训经营</p>
+          <p className="mono text-[10px] tracking-[0.2em] text-dim flex flex-wrap items-center gap-x-4 gap-y-1.5">
+            <span>信息撮合 · 不涉学科培训经营</span>
+            <a
+              href="https://beian.miit.gov.cn/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="link-slide"
+            >
+              陕ICP备2026028201号
+            </a>
+          </p>
         </div>
       </div>
     </footer>

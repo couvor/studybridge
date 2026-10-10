@@ -1,5 +1,23 @@
 # 学桥 × 明旸登录服务 · 账号统一方案（备案后执行）
 
+> ## ✅ 已执行（2026-10-09）
+> 实现偏差记录（与本文档的差异，均为执行时的实际决策）：
+> 1. 学桥域名实际为 **x.mingyanginfo.com**（非文中的 jiajiao.mingyanginfo.com），所有回调/白名单以此为准。
+> 2. `client_secret` **不落 `/etc/loginapp.env`**：login 侧仅存 sha256 哈希（`sso_clients` 表），
+>    明文只写入学桥 `.env`（`SSO_CLIENT_SECRET`）——密钥单点存放，少一处暴露面。
+> 3. `GET /sso/logout` 未实现（文档中即标记"可选"）：验收项"任一边退出不影响另一边"按两套会话独立达成。
+> 4. 实现期发现的坑（已修，勿踩）：nginx 反代下 Next 内部 `req.url` 恒为 `localhost:38081`
+>    （不信任 Host / X-Forwarded-Host），**中间件重定向必须用 `.env` 的 `SITE_ORIGIN` 拼绝对地址**；
+>    路由处理器用相对 Location 的 `Response`。44 项服务端验收（19 全流程 + 4 续接 + 10 IdP +
+>    9 Turnstile 回归 + 管理面隔离）全部通过。
+> 5. 本地登录保留路径同时服务 demo 账号（`authSource=LOCAL`），SSO 用户（`authSource=SSO`）
+>    本地密码登录被拒并提示走明旸账号（回滚能力见第五节，实测可用）。
+> 6. **原"ADMIN 不进 SSO"决策已被用户推翻（2026-10-09 晚）**：运营账号改走明旸账号——
+>    实现为 `.env` 的 `SSO_ADMIN_USERNAMES` 用户名白名单（命中即 ADMIN、跳过选身份直进 /admin；
+>    当前含 couv、zhougaofan）；登录页本地登录表单已整体移除（纯 SSO 化），
+>    本地 admin@studybridge.cn 留库备用（故障时恢复表单或运维处理）。
+>    ⚠️ 白名单账号若从 login 服务删除，必须同步移出白名单，否则用户名被他人注册会误获运营权限。
+
 > 决策（2026-10-08）：**备案通过后**，学桥接入 `login.mingyanginfo.com` 作为唯一登录入口，
 > 用户只注册一次、只绑一次 2FA；学桥侧首次登录时选择「家长 / 教员」角色。
 > 备案期间两边并行、互不干扰，**本方案不执行**。
