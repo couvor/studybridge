@@ -9,16 +9,17 @@ export const metadata = { title: "需求审核 · 学桥" };
 export default async function AdminDemandsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ r?: string }>;
+  searchParams: Promise<{ r?: string; done?: string; error?: string }>;
 }) {
   await requireRole("ADMIN");
-  const { r } = await searchParams;
+  const { r, done, error } = await searchParams;
   const filter = r && ["PENDING", "APPROVED", "REJECTED"].includes(r) ? r : undefined;
 
   const demands = await db.demand.findMany({
     where: filter ? { reviewStatus: filter } : undefined,
     include: { subject: true, parent: true, _count: { select: { applications: true } } },
     orderBy: [{ reviewStatus: "asc" }, { createdAt: "desc" }],
+    take: 200,
   });
 
   return (
@@ -28,6 +29,19 @@ export default async function AdminDemandsPage({
         <h1 className="font-serifcn font-black text-3xl mt-3">求教单队列</h1>
         <p className="text-[13px] text-mute mt-2">检查信息完整性、有无敏感信息与违规内容。通过后进入教员端需求大厅。</p>
       </div>
+
+      {done && (
+        <div className="card-2 border-l-2 !border-l-accent px-5 py-4">
+          <p className="text-[13.5px]">
+            {done === "approve" ? "已通过审核，求教单已进入需求大厅。" : "已驳回，结果已通知家长。"}
+          </p>
+        </div>
+      )}
+      {error && (
+        <div className="card-2 border-l-2 !border-l-[#e0666a] px-5 py-4">
+          <p className="text-[13.5px]">操作未生效：该条目可能已被其他管理员处理。</p>
+        </div>
+      )}
 
       <div className="flex flex-wrap gap-2">
         <Link href="/admin/demands" className={`btn btn-sm ${!filter ? "btn-primary" : ""}`}>全部</Link>

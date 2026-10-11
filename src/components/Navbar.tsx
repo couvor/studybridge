@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import ThemeToggle from "./ThemeToggle";
 import { logoutAction } from "@/app/actions/auth";
 
@@ -10,6 +10,24 @@ type NavSession = { name: string; role: "PARENT" | "TUTOR" | "ADMIN" } | null;
 export default function Navbar({ session, unread = 0 }: { session: NavSession; unread?: number }) {
   const [open, setOpen] = useState(false);
   const navRef = useRef<HTMLElement>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
+
+  // 移动端菜单展开时：点击页面其它区域或按 ESC 关闭
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
 
   const home = session
     ? session.role === "ADMIN"
@@ -30,7 +48,7 @@ export default function Navbar({ session, unread = 0 }: { session: NavSession; u
 
   return (
     <header className="fixed inset-x-0 top-4 z-50 px-4">
-      <div className="container-x">
+      <div className="container-x" ref={wrapRef}>
         <nav
           ref={navRef}
           onMouseMove={onMove}

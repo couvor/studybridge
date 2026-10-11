@@ -4,17 +4,9 @@ import path from "path";
 import { getSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { cosConfigured, getObjectBuffer } from "@/lib/cos";
+import { MATERIAL_MIME } from "@/lib/materials";
 
 const UPLOAD_DIR = path.join(process.cwd(), "uploads");
-
-const MIME: Record<string, string> = {
-  ".png": "image/png",
-  ".jpg": "image/jpeg",
-  ".jpeg": "image/jpeg",
-  ".gif": "image/gif",
-  ".webp": "image/webp",
-  ".pdf": "application/pdf",
-};
 
 // 认证材料的鉴访问：仅管理员与材料本人
 export async function GET(_req: Request, { params }: { params: Promise<{ name: string }> }) {
@@ -53,9 +45,14 @@ export async function GET(_req: Request, { params }: { params: Promise<{ name: s
     }
   }
   const ext = path.extname(name).toLowerCase();
+  const mime = MATERIAL_MIME[ext];
   return new NextResponse(new Uint8Array(buf), {
     headers: {
-      "Content-Type": MIME[ext] ?? "application/octet-stream",
+      // 类型只来自扩展名白名单；白名单外一律 octet-stream + 强制下载，
+      // 配合 nosniff 防止浏览器把上传内容嗅探成 HTML/脚本（存储型 XSS / webshell）
+      "Content-Type": mime ?? "application/octet-stream",
+      ...(mime ? {} : { "Content-Disposition": "attachment" }),
+      "X-Content-Type-Options": "nosniff",
       "Cache-Control": "private, max-age=300",
     },
   });

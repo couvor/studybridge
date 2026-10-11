@@ -5,6 +5,9 @@ import { useRef, useState } from "react";
 // 认证材料上传组件：选定文件 → 申请预签名 → 浏览器直传 COS → 提交时只传对象名。
 // COS 未配置或直传失败时，保留原文件随表单提交（服务端中转/本地）的旧路径。
 
+const MAX_SIZE = 10 * 1024 * 1024; // 10MB，与服务端中转路径一致
+const EXT_WHITELIST = /\.(png|jpe?g|gif|webp|pdf)$/i;
+
 type Props = {
   kind: "card" | "transcript";
   fieldName: "studentCard" | "transcript";
@@ -18,10 +21,23 @@ export default function MaterialUpload({ kind, fieldName, keyField, label, uploa
   const [key, setKey] = useState("");
   const [status, setStatus] = useState<"idle" | "uploading" | "done" | "failed">("idle");
   const [fileName, setFileName] = useState("");
+  const [reason, setReason] = useState("");
 
   async function onPick(file: File | null) {
     if (!file) return;
     setKey("");
+    setReason("");
+    // 前端先行校验类型与大小（服务端签名与中转路径另有同款白名单兜底）
+    if (!EXT_WHITELIST.test(file.name)) {
+      setStatus("failed");
+      setReason("仅支持 JPG / PNG / GIF / WebP / PDF");
+      return;
+    }
+    if (file.size > MAX_SIZE) {
+      setStatus("failed");
+      setReason("文件超过 10MB 上限");
+      return;
+    }
     setStatus("uploading");
     setFileName(file.name);
     try {
@@ -33,6 +49,7 @@ export default function MaterialUpload({ kind, fieldName, keyField, label, uploa
       const d = await r.json();
       if (!r.ok) {
         setStatus("failed");
+        setReason(d?.error === "bad-ext" ? "仅支持 JPG / PNG / GIF / WebP / PDF" : "");
         return;
       }
       if (!d.configured) {
@@ -40,7 +57,12 @@ export default function MaterialUpload({ kind, fieldName, keyField, label, uploa
         setStatus("idle");
         return;
       }
-      const put = await fetch(d.uploadUrl, { method: "PUT", body: file });
+      // Content-Type 必须与预签名一致（签名已绑定，类型不符 COS 拒收）
+      const put = await fetch(d.uploadUrl, {
+        method: "PUT",
+        body: file,
+        headers: d.contentType ? { "Content-Type": d.contentType } : undefined,
+      });
       if (!put.ok) {
         setStatus("failed");
         return;
@@ -78,7 +100,7 @@ export default function MaterialUpload({ kind, fieldName, keyField, label, uploa
       )}
       {status === "failed" && (
         <p className="mono text-[10px] tracking-[0.15em] text-[#e0666a] mt-1.5">
-          直传失败，保存时将自动改走服务器上传（请保持文件已选择）
+          {reason || "直传失败，保存时将自动改走服务器上传（请保持文件已选择）"}
         </p>
       )}
     </div>

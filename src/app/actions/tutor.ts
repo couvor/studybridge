@@ -8,6 +8,8 @@ import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { push } from "@/lib/notify";
 import { cosConfigured, putObjectBuffer, uidTag } from "@/lib/cos";
+import { materialExt, materialContentType } from "@/lib/materials";
+import { rateLimit } from "@/lib/rateLimit";
 
 const UPLOAD_DIR = path.join(process.cwd(), "uploads");
 
@@ -16,12 +18,13 @@ const DIRECT_NAME_RE = /^(card|transcript)-u[a-f0-9]{8}-[0-9]{10,16}-[a-f0-9]{4,
 
 async function saveUpload(file: File | null, prefix: string): Promise<string> {
   if (!file || file.size === 0) return "";
-  if (file.size > 10 * 1024 * 1024) throw new Error("文件过大");
-  const ext = file.name.match(/\.[a-zA-Z0-9]+$/)?.[0]?.slice(0, 8) ?? "";
+  if (file.size > 10 * 1024 * 1024) throw new Error("文件超过 10MB 上限");
+  const ext = materialExt(file.name);
+  if (!ext) throw new Error("仅支持 JPG / PNG / GIF / WebP / PDF");
   const safe = `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext}`;
   if (cosConfigured()) {
     // 非文本数据一律进 COS（浏览器直传失败时的服务端中转回退）
-    await putObjectBuffer(safe, Buffer.from(await file.arrayBuffer()));
+    await putObjectBuffer(safe, Buffer.from(await file.arrayBuffer()), materialContentType(ext));
     return safe;
   }
   await mkdir(UPLOAD_DIR, { recursive: true });
@@ -59,12 +62,19 @@ export async function updateTutorProfileAction(fd: FormData) {
   const subjectIds = fd.getAll("subjects").map(String).filter(Boolean);
   const phone = String(fd.get("phone") ?? "").trim();
 
-  const cardName = await resolveUpload(fd, "card", s.uid);
-  const transcriptName = await resolveUpload(fd, "transcript", s.uid);
+  let cardName = "";
+  let transcriptName = "";
+  try {
+    cardName = await resolveUpload(fd, "card", s.uid);
+    transcriptName = await resolveUpload(fd, "transcript", s.uid);
+  } catch (err) {
+    // 文件过大 / 扩展名不在白名单：回档案页提示，不静默丢弃
+    redirect(`/tutor/profile?error=upload&msg=${encodeURIComponent((err as Error).message)}`);
+  }
 
-  // 重新提交认证材料则回到待审核；仅编辑文字不重置认证状态
+  // 重新提交认证材料则回到待审核；仅编辑文字不重置认证状态（含被驳回后必须重新交材料）
   const hasNewMaterial = cardName || transcriptName;
-  const nextStatus = hasNewMaterial ? "PENDING" : profile.auditStatus === "REJECTED" ? "PENDING" : profile.auditStatus;
+  const nextStatus = hasNewMaterial ? "PENDING" : profile.auditStatus;
 
   const subjects = subjectIds.length
     ? await db.subject.findMany({ where: { id: { in: subjectIds } } })
@@ -77,7 +87,8 @@ export async function updateTutorProfileAction(fd: FormData) {
       ...(cardName ? { studentCardUrl: cardName } : {}),
       ...(transcriptName ? { transcriptUrl: transcriptName } : {}),
       auditStatus: nextStatus,
-      auditNote: "",
+      // 驳回原因保留到重新提交材料：文字编辑不再触发重审，也就没必要清掉它
+      ...(hasNewMaterial ? { auditNote: "" } : {}),
       subjects: { set: subjects.map((x) => ({ id: x.id })) },
     },
   });
@@ -96,7 +107,7 @@ export async function updateTutorProfileAction(fd: FormData) {
 export async function applyToDemandAction(fd: FormData) {
   const s = await requireRole("TUTOR");
   const demandId = String(fd.get("demandId") ?? "");
-  const message = String(fd.get("message") ?? "").trim();
+  const message = String(fd.get("message") ?? "").trim().slice(0, 500);
 
   const profile = await db.tutorProfile.findUnique({ where: { userId: s.uid } });
   if (!profile || profile.auditStatus !== "APPROVED") return;
@@ -110,14 +121,20 @@ export async function applyToDemandAction(fd: FormData) {
   const exists = await db.application.findUnique({
     where: { demandId_tutorId: { demandId, tutorId: profile.id } },
   });
-  if (exists) return;
-
-  await db.application.create({ data: { demandId, tutorId: profile.id, message } });
+  if (exists) {
+    // 被婉拒（REJECTED）的报名可重新提交：更新留言并回到待确认，其余状态不重复报名
+    if (exists.status !== "REJECTED" || !rateLimit(`apply:${s.uid}`, 20, 60 * 60_000)) return;
+    await db.application.update({ where: { id: exists.id }, data: { message, status: "PENDING" } });
+  } else {
+    if (!rateLimit(`apply:${s.uid}`, 20, 60 * 60_000)) return;
+    await db.application.create({ data: { demandId, tutorId: profile.id, message } });
+  }
   await push(demand.parentId, "APPLICATION", `你的求教单 ${demand.code}（${demand.subject.name}）收到 ${s.name} 的报名，快去看看吧。`, `/parent/demands/${demandId}`);
 
   revalidatePath("/tutor/demands");
   revalidatePath("/tutor/applications");
   revalidatePath(`/parent/demands/${demandId}`);
+  redirect(`/tutor/demands?applied=${demandId}`);
 }
 
 export async function withdrawApplicationAction(fd: FormData) {

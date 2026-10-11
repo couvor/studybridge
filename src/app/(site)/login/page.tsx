@@ -9,6 +9,7 @@ const ERRORS: Record<string, string> = {
   "4": "登录校验未通过（会话过期或票据无效），请重试",
   "5": "单点登录服务未配置，请联系管理员",
   "6": "账号标识冲突，请联系平台运营",
+  "7": "尝试过于频繁，请稍后再试",
 };
 
 export default async function LoginPage({

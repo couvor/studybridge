@@ -40,8 +40,10 @@ export function cosKey(name: string): string {
   return KEY_PREFIX + name;
 }
 
-// 生成浏览器直传用的预签名 PUT URL（5 分钟有效，仅此一个对象、仅 PUT）
-export function presignPutUrl(name: string): Promise<string> {
+// 生成浏览器直传用的预签名 PUT URL（5 分钟有效，仅此一个对象、仅 PUT）。
+// contentType 会签进签名：浏览器上传时必须带一致的 Content-Type 头，
+// 类型不符 COS 直接 403，防止任意内容借道签名 URL 进桶。
+export function presignPutUrl(name: string, contentType: string): Promise<string> {
   return new Promise((resolve, reject) => {
     cos().getObjectUrl(
       {
@@ -51,6 +53,7 @@ export function presignPutUrl(name: string): Promise<string> {
         Method: "PUT",
         Sign: true,
         Expires: 300,
+        Headers: { "Content-Type": contentType },
       },
       (err, data) => (err ? reject(err) : resolve(data.Url))
     );

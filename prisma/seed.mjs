@@ -3,6 +3,12 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
+// 生产安全守卫：seed 会清空重灌且含弱密码演示账号，生产环境必须显式声明才允许执行
+if (process.env.NODE_ENV === "production" && process.env.SEED_ALLOW_PRODUCTION !== "1") {
+  console.error("[seed] 拒绝执行：当前为生产环境。如确需重灌演示数据，请显式设置 SEED_ALLOW_PRODUCTION=1。");
+  process.exit(1);
+}
+
 const db = new PrismaClient();
 const PASSWORD = "demo1234";
 

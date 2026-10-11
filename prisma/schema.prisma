@@ -97,10 +97,11 @@ model Application {
 }
 
 // 撮合单：feeType / feeAmount 为商业模式预留字段，当前一律免费（NONE / 0）
+// demandId 唯一：一个需求最多一张撮合单（并发接受/撮合时第二个创建会撞约束失败，防止重复成单）
 model Order {
   id            String     @id @default(cuid())
   code          String     @unique
-  demandId      String
+  demandId      String     @unique
   demand        Demand     @relation(fields: [demandId], references: [id])
   parentId      String
   parent        User       @relation("ParentOrders", fields: [parentId], references: [id])

@@ -5,8 +5,13 @@ import { fmtDate, MODE_LABEL } from "@/lib/constants";
 
 export const metadata = { title: "认证审核 · 学桥" };
 
-export default async function AdminAuditsPage() {
+export default async function AdminAuditsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ done?: string; error?: string }>;
+}) {
   await requireRole("ADMIN");
+  const { done, error } = await searchParams;
 
   const queue = await db.tutorProfile.findMany({
     where: { auditStatus: "PENDING" },
@@ -27,6 +32,19 @@ export default async function AdminAuditsPage() {
         <h1 className="font-serifcn font-black text-3xl mt-3">教员认证队列</h1>
         <p className="text-[13px] text-mute mt-2">核对学生证姓名与注册姓名是否一致、材料是否清晰可辨。</p>
       </div>
+
+      {done && (
+        <div className="card-2 border-l-2 !border-l-accent px-5 py-4">
+          <p className="text-[13.5px]">
+            {done === "approve" ? "已通过认证，教员档案已进入公开教员库。" : "已驳回，驳回通知已发送给教员。"}
+          </p>
+        </div>
+      )}
+      {error && (
+        <div className="card-2 border-l-2 !border-l-[#e0666a] px-5 py-4">
+          <p className="text-[13.5px]">操作未生效：该条目可能已被其他管理员处理。</p>
+        </div>
+      )}
 
       <div className="space-y-4">
         {queue.length === 0 && <div className="card py-12 text-center text-[13.5px] text-dim">队列为空，所有材料都已处理 ✔</div>}

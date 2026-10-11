@@ -83,11 +83,16 @@ export default async function NewDemandPage({
             id="description"
             name="description"
             className="textarea"
+            maxLength={2000}
             placeholder="学员基础、目标、希望的教学风格、是否需要试听…"
           />
         </div>
 
-        {error && <p className="mono text-[11px] text-[#e0666a]">请至少填写科目与学员年级</p>}
+        {error && (
+          <p className="mono text-[11px] text-[#e0666a]">
+            {error === "3" ? "发布过于频繁，请稍后再试" : "请至少填写科目与学员年级"}
+          </p>
+        )}
 
         <button className="btn btn-primary w-full sm:w-auto">提交需求，等待平台审核</button>
       </form>

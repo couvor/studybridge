@@ -12,4 +12,7 @@ export async function markAllReadAction() {
     data: { read: true },
   });
   revalidatePath("/notifications");
+  // Navbar 未读红点来自各 layout 的服务端查询：标记已读后必须同时失效布局缓存，
+  // 否则红点要等下次整页刷新才消失。
+  revalidatePath("/", "layout");
 }

@@ -5,7 +5,10 @@ export const SESSION_COOKIE = "sb_session";
 export const GATE_COOKIE = "sb_gate";
 
 function secret() {
-  return new TextEncoder().encode(process.env.AUTH_SECRET || "studybridge-dev-secret-change-me");
+  // 绝不回退到可预测密钥：缺失即抛错（会话校验会拒绝、签发会失败），禁止带弱密钥运行
+  const s = process.env.AUTH_SECRET;
+  if (!s) throw new Error("AUTH_SECRET is not set");
+  return new TextEncoder().encode(s);
 }
 
 export type SessionPayload = {

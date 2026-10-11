@@ -534,3 +534,7 @@ input[type="checkbox"].ck:checked::before {
   border-left-color: var(--accent-soft);
   background: color-mix(in srgb, var(--accent) 8%, transparent);
 }
+
+/* 主题切换按钮 glyph：html.light 在首帧前由 layout 内联脚本决定，无闪烁 */
+html:not(.light) .theme-moon { display: none; }
+html.light .theme-sun { display: none; }

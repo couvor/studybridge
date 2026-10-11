@@ -9,10 +9,10 @@ export const metadata = { title: "需求大厅 · 学桥" };
 export default async function TutorDemandsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ cat?: string }>;
+  searchParams: Promise<{ cat?: string; applied?: string }>;
 }) {
   const s = await requireRole("TUTOR");
-  const { cat } = await searchParams;
+  const { cat, applied } = await searchParams;
   const profile = await db.tutorProfile.findUnique({ where: { userId: s.uid } });
   if (!profile) return null;
 
@@ -32,7 +32,13 @@ export default async function TutorDemandsPage({
     orderBy: { createdAt: "desc" },
   });
 
-  const visible = demands.filter((d) => !appMap.has(d.id));
+  // 待确认 / 已接受的报名继续隐藏该需求；被婉拒（REJECTED）的允许重新看到并再次报名
+  const visible = demands.filter((d) => {
+    const st = appMap.get(d.id);
+    return st !== "PENDING" && st !== "ACCEPTED";
+  });
+  // 提交成功后该需求已从列表隐藏，横幅要从全量里找
+  const appliedDemand = applied ? demands.find((d) => d.id === applied) : null;
   const approved = profile.auditStatus === "APPROVED";
 
   return (
@@ -47,6 +53,14 @@ export default async function TutorDemandsPage({
           </p>
         )}
       </div>
+
+      {appliedDemand && (
+        <div className="card-2 border-l-2 !border-l-accent px-5 py-4">
+          <p className="text-[13.5px]">
+            已向 {appliedDemand.code}（{appliedDemand.subject.name}）提交报名，等待家长确认。
+          </p>
+        </div>
+      )}
 
       <div className="flex flex-wrap gap-2">
         <Link href="/tutor/demands" className={`btn btn-sm ${!cat ? "btn-primary" : ""}`}>全部</Link>
@@ -90,6 +104,7 @@ export default async function TutorDemandsPage({
                       name="message"
                       className="textarea !min-h-20 text-[13px]"
                       placeholder="向家长介绍一下你能怎么帮到这位学员…"
+                      maxLength={500}
                       required
                     />
                     <button className="btn btn-primary btn-sm w-full">提交报名</button>

@@ -6,6 +6,7 @@ export const metadata = { title: "私有访问 · 学桥" };
 const ERRORS: Record<string, string> = {
   "1": "口令不正确，请重试",
   "2": "人机验证未通过，请重试",
+  "3": "尝试过于频繁，请稍后再试",
 };
 
 export default async function GatePage({

@@ -22,7 +22,14 @@ export async function verifyTurnstile(
   expectedAction: string
 ): Promise<boolean> {
   const secret = process.env.TURNSTILE_SECRET_KEY;
-  if (!secret) return true; // 未配置则放行（仅影响本地开发）
+  if (!secret) {
+    // 生产缺密钥必须拒绝（防人机验证形同虚设）；本地开发放行不受影响
+    if (process.env.NODE_ENV === "production") {
+      console.error("[turnstile] TURNSTILE_SECRET_KEY missing in production — failing closed");
+      return false;
+    }
+    return true;
+  }
   if (!token || typeof token !== "string" || token.length < 10 || token.length > 2048) {
     return false;
   }

@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { push } from "@/lib/notify";
+import { demandCode, orderCode } from "@/lib/codes";
+import { rateLimit } from "@/lib/rateLimit";
 
 async function notifyAdmins(type: string, content: string, link: string) {
   const admins = await db.user.findMany({ where: { role: "ADMIN" }, select: { id: true } });
@@ -19,17 +21,17 @@ export async function createDemandAction(fd: FormData) {
   const region = String(fd.get("region") ?? "").trim();
   const frequency = String(fd.get("frequency") ?? "").trim();
   const budgetNote = String(fd.get("budgetNote") ?? "").trim();
-  const description = String(fd.get("description") ?? "").trim();
+  const description = String(fd.get("description") ?? "").trim().slice(0, 2000);
 
+  if (!rateLimit(`demand:${s.uid}`, 10, 60 * 60_000)) redirect(`/parent/demands/new?error=3`);
   if (!subjectId || !learnerGrade) redirect(`/parent/demands/new?error=1`);
 
   const subject = await db.subject.findUnique({ where: { id: subjectId } });
   if (!subject) redirect(`/parent/demands/new?error=1`);
 
-  const seq = (await db.demand.count()) + 1;
   const demand = await db.demand.create({
     data: {
-      code: `D-${String(seq).padStart(4, "0")}`,
+      code: demandCode(),
       parentId: s.uid,
       subjectId,
       learnerGrade,
@@ -72,26 +74,32 @@ export async function acceptApplicationAction(fd: FormData) {
   if (!app || app.demand.parentId !== s.uid) return;
   if (app.demand.status !== "OPEN" || app.status !== "PENDING") return;
 
-  await db.$transaction([
-    db.application.update({ where: { id: applicationId }, data: { status: "ACCEPTED" } }),
-    db.application.updateMany({
+  // 原子完成：接受报名、婉拒其余、需求转 MATCHED、建撮合单。
+  // demand.updateMany 带 OPEN 条件——并发接受两个报名时只有一个能改状态，
+  // 另一个 updateMany 影响 0 行即回滚；Order.demandId 唯一约束兜底防重复成单。
+  const order = await db.$transaction(async (tx) => {
+    const claimed = await tx.demand.updateMany({
+      where: { id: app.demandId, status: "OPEN" },
+      data: { status: "MATCHED" },
+    });
+    if (claimed.count === 0) return null;
+    await tx.application.update({ where: { id: applicationId }, data: { status: "ACCEPTED" } });
+    await tx.application.updateMany({
       where: { demandId: app.demandId, status: "PENDING", id: { not: applicationId } },
       data: { status: "REJECTED" },
-    }),
-    db.demand.update({ where: { id: app.demandId }, data: { status: "MATCHED" } }),
-  ]);
-
-  const seq = (await db.order.count()) + 1;
-  const order = await db.order.create({
-    data: {
-      code: `O-${String(seq).padStart(4, "0")}`,
-      demandId: app.demandId,
-      parentId: s.uid,
-      tutorId: app.tutorId,
-      status: "ACTIVE",
-      matchSource: "PARENT_ACCEPT",
-    },
+    });
+    return tx.order.create({
+      data: {
+        code: orderCode(),
+        demandId: app.demandId,
+        parentId: s.uid,
+        tutorId: app.tutorId,
+        status: "ACTIVE",
+        matchSource: "PARENT_ACCEPT",
+      },
+    });
   });
+  if (!order) return; // 已被并发请求处理，本次不重复成单
 
   await push(app.tutor.userId, "ORDER", `恭喜！家长已接受你对 ${app.demand.code}（${app.demand.subject.name}）的报名，撮合单 ${order.code} 已建立。`, `/tutor/orders/${order.id}`);
 

@@ -14,6 +14,7 @@ export default async function AdminOrdersPage() {
       _count: { select: { lessonLogs: true, reviews: true } },
     },
     orderBy: { startedAt: "desc" },
+    take: 200,
   });
 
   return (

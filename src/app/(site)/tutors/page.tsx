@@ -6,6 +6,16 @@ import { Avatar, Stars } from "@/components/Atoms";
 
 export const metadata = { title: "教员库 · 学桥" };
 
+// 分类链接：保留当前 mode / q 筛选态
+const catHref = (cat: string | null, mode?: string, q?: string) => {
+  const p = new URLSearchParams();
+  if (cat) p.set("cat", cat);
+  if (mode) p.set("mode", mode);
+  if (q) p.set("q", q);
+  const qs = p.toString();
+  return qs ? `/tutors?${qs}` : "/tutors";
+};
+
 export default async function TutorsPage({
   searchParams,
 }: {
@@ -35,6 +45,7 @@ export default async function TutorsPage({
     },
     include: { user: true, subjects: true },
     orderBy: [{ ratingAvg: "desc" }, { ratingCount: "desc" }],
+    take: 120,
   });
 
   return (
@@ -57,9 +68,11 @@ export default async function TutorsPage({
       <section className="border-b border-line sticky top-[76px] z-30 bg-bg/90 backdrop-blur-md">
         <div className="container-x py-4">
           <form className="flex flex-wrap items-center gap-3">
+            {/* 表单提交（mode/q）保留当前分类；分类链接保留 mode/q —— 筛选态可组合 */}
+            <input type="hidden" name="cat" value={cat ?? ""} />
             <div className="flex flex-wrap gap-2">
               <Link
-                href="/tutors"
+                href={catHref(null, mode, q)}
                 className={`btn btn-sm ${!cat ? "btn-primary" : ""}`}
               >
                 全部
@@ -67,7 +80,7 @@ export default async function TutorsPage({
               {CATEGORY_ORDER.map((key) => (
                 <Link
                   key={key}
-                  href={`/tutors?cat=${key}${mode ? `&mode=${mode}` : ""}`}
+                  href={catHref(key, mode, q)}
                   className={`btn btn-sm ${cat === key ? "btn-primary" : ""}`}
                 >
                   {CATEGORY_LABEL[key].label}

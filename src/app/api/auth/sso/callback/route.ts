@@ -23,13 +23,17 @@ export async function GET(req: Request) {
 
   const jar = await cookies();
   const cookieState = jar.get("sb_sso_state")?.value ?? "";
+  const cookieAnon = jar.get("sb_sso_anon")?.value ?? "";
   jar.delete("sb_sso_state");
+  jar.delete("sb_sso_anon");
 
-  // state 校验：cookie 命中 或 服务端留存命中（任一即可）。
+  // state 校验（双层，任一通过即可）：
+  //   a. sb_sso_state cookie 与 URL state 一致；
+  //   b. 服务端留存命中且绑定本浏览器的匿名标识（sb_sso_anon）——
+  //      攻击者预植的 state 绑定的是他自己的匿名标识，对受害者无效。
   // 之前只靠客户端 cookie，跨域往返中 cookie 易丢失/过期 → 稳定复现 ?error=4。
-  // URL 中的 state 仍是随机不可猜测的令牌，CSRF 防护不受影响。
   const cookieOk = !!cookieState && cookieState === state;
-  const serverOk = consumeSsoState(state);
+  const serverOk = consumeSsoState(state, cookieAnon);
   if (!ticket || !state || (!cookieOk && !serverOk)) return fail("4");
 
   const issuer = process.env.SSO_ISSUER ?? "";

@@ -1,9 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { push } from "@/lib/notify";
+import { orderCode } from "@/lib/codes";
 
 export async function auditTutorAction(fd: FormData) {
   await requireRole("ADMIN");
@@ -12,7 +14,9 @@ export async function auditTutorAction(fd: FormData) {
   const note = String(fd.get("note") ?? "").trim();
 
   const tutor = await db.tutorProfile.findUnique({ where: { id: tutorId }, include: { user: true } });
-  if (!tutor || tutor.auditStatus !== "PENDING") return;
+  if (!tutor || tutor.auditStatus !== "PENDING") {
+    redirect("/admin/audits?error=1");
+  }
 
   if (decision === "APPROVE") {
     await db.tutorProfile.update({ where: { id: tutorId }, data: { auditStatus: "APPROVED", auditNote: "" } });
@@ -20,9 +24,12 @@ export async function auditTutorAction(fd: FormData) {
   } else if (decision === "REJECT") {
     await db.tutorProfile.update({ where: { id: tutorId }, data: { auditStatus: "REJECTED", auditNote: note || "材料不清晰，请重新提交" } });
     await push(tutor.userId, "AUDIT", `认证未通过：${note || "材料不清晰，请重新提交"}`, "/tutor/profile");
+  } else {
+    redirect("/admin/audits?error=1");
   }
   revalidatePath("/admin/audits");
   revalidatePath("/tutors");
+  redirect(`/admin/audits?done=${decision === "APPROVE" ? "approve" : "reject"}`);
 }
 
 export async function reviewDemandAction(fd: FormData) {
@@ -32,7 +39,9 @@ export async function reviewDemandAction(fd: FormData) {
   const note = String(fd.get("note") ?? "").trim();
 
   const demand = await db.demand.findUnique({ where: { id: demandId }, include: { subject: true } });
-  if (!demand || demand.reviewStatus !== "PENDING") return;
+  if (!demand || demand.reviewStatus !== "PENDING") {
+    redirect("/admin/demands?error=1");
+  }
 
   if (decision === "APPROVE") {
     await db.demand.update({ where: { id: demandId }, data: { reviewStatus: "APPROVED", auditNote: "" } });
@@ -40,9 +49,12 @@ export async function reviewDemandAction(fd: FormData) {
   } else if (decision === "REJECT") {
     await db.demand.update({ where: { id: demandId }, data: { reviewStatus: "REJECTED", auditNote: note || "信息不完整" } });
     await push(demand.parentId, "DEMAND", `求教单 ${demand.code} 审核未通过：${note || "信息不完整"}`, `/parent/demands/${demandId}`);
+  } else {
+    redirect("/admin/demands?error=1");
   }
   revalidatePath("/admin/demands");
   revalidatePath("/tutor/demands");
+  redirect(`/admin/demands?done=${decision === "APPROVE" ? "approve" : "reject"}`);
 }
 
 export async function adminMatchAction(fd: FormData) {
@@ -56,25 +68,33 @@ export async function adminMatchAction(fd: FormData) {
   if (demand.status !== "OPEN" || demand.reviewStatus !== "APPROVED") return;
   if (tutor.auditStatus !== "APPROVED") return;
 
-  // 该需求下所有待确认报名自动婉拒
-  const pending = await db.application.findMany({
-    where: { demandId, status: "PENDING" },
-    include: { tutor: true },
+  // 原子完成：占用需求（OPEN→MATCHED）、婉拒待确认报名、建撮合单。
+  // updateMany 带 OPEN 条件防并发撮合/家长接受同一需求重复成单（demandId 唯一约束兜底）。
+  const result = await db.$transaction(async (tx) => {
+    const claimed = await tx.demand.updateMany({
+      where: { id: demandId, status: "OPEN" },
+      data: { status: "MATCHED" },
+    });
+    if (claimed.count === 0) return null;
+    const pending = await tx.application.findMany({
+      where: { demandId, status: "PENDING" },
+      include: { tutor: true },
+    });
+    await tx.application.updateMany({ where: { demandId, status: "PENDING" }, data: { status: "REJECTED" } });
+    const order = await tx.order.create({
+      data: {
+        code: orderCode(),
+        demandId,
+        parentId: demand.parentId,
+        tutorId,
+        status: "ACTIVE",
+        matchSource: "ADMIN_RECOMMEND",
+      },
+    });
+    return { order, pending };
   });
-  await db.application.updateMany({ where: { demandId, status: "PENDING" }, data: { status: "REJECTED" } });
-
-  const seq = (await db.order.count()) + 1;
-  const order = await db.order.create({
-    data: {
-      code: `O-${String(seq).padStart(4, "0")}`,
-      demandId,
-      parentId: demand.parentId,
-      tutorId,
-      status: "ACTIVE",
-      matchSource: "ADMIN_RECOMMEND",
-    },
-  });
-  await db.demand.update({ where: { id: demandId }, data: { status: "MATCHED" } });
+  if (!result) return;
+  const { order, pending } = result;
 
   await Promise.all([
     push(demand.parentId, "ORDER", `平台为你的求教单 ${demand.code}（${demand.subject.name}）推荐了教员 ${tutor.user.name}，撮合单 ${order.code} 已建立。`, `/parent/orders/${order.id}`),
@@ -84,4 +104,5 @@ export async function adminMatchAction(fd: FormData) {
 
   revalidatePath("/admin/recommends");
   revalidatePath("/admin/orders");
+  redirect("/admin/recommends?done=1");
 }

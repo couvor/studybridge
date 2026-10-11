@@ -9,10 +9,10 @@ export const metadata = { title: "档案与认证 · 学桥" };
 export default async function TutorProfilePage({
   searchParams,
 }: {
-  searchParams: Promise<{ saved?: string }>;
+  searchParams: Promise<{ saved?: string; error?: string; msg?: string }>;
 }) {
   const s = await requireRole("TUTOR");
-  const { saved } = await searchParams;
+  const { saved, error, msg } = await searchParams;
 
   const [profile, user, subjects] = await Promise.all([
     db.tutorProfile.findUnique({ where: { userId: s.uid }, include: { subjects: true } }),
@@ -31,6 +31,11 @@ export default async function TutorProfilePage({
 
   return (
     <div className="max-w-3xl space-y-8">
+      {error === "upload" && (
+        <div className="card-2 border-l-2 !border-l-[#e0666a] px-5 py-4">
+          <p className="text-[13.5px]">保存失败：{msg || "上传文件不符合要求（仅支持 JPG / PNG / GIF / WebP / PDF，10MB 以内）"}</p>
+        </div>
+      )}
       {saved && (
         <div className="card-2 border-l-2 !border-l-accent px-5 py-4">
           <p className="text-[13.5px]">档案已保存。{profile.auditStatus === "PENDING" ? "认证材料已提交，等待平台人工核验。" : "修改即时生效。"}</p>

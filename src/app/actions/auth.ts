@@ -7,14 +7,19 @@ import { db } from "@/lib/db";
 import { setSessionCookie, clearSessionCookie, homeByRole, cookieSecure, getSession } from "@/lib/auth";
 import { signGate, GATE_COOKIE, SESSION_COOKIE } from "@/lib/jwt";
 import { verifyTurnstile } from "@/lib/turnstile";
+import { safeInternalPath } from "@/lib/safePath";
+import { clientIp, rateLimit } from "@/lib/rateLimit";
 
 export async function gateAction(fd: FormData) {
   const pwd = String(fd.get("password") ?? "");
   const nextRaw = String(fd.get("next") ?? "/");
-  // 仅接受站内路径；排除 // 开头的协议相对地址（防开放重定向）
-  const safeNext = nextRaw.startsWith("/") && !nextRaw.startsWith("//") ? nextRaw : "/";
+  // 仅接受站内路径（safeInternalPath 同时排除 //、/\ 等协议相对开放重定向）
+  const safeNext = safeInternalPath(nextRaw);
   const qs =
     (safeNext !== "/" ? `next=${encodeURIComponent(safeNext)}&` : "") + `t=${Date.now()}`;
+  if (!rateLimit(`gate:${await clientIp()}`, 20, 5 * 60_000)) {
+    redirect(`/gate?error=3&${qs}`);
+  }
   if (!(await verifyTurnstile(fd.get("cf-turnstile-response"), "sb-gate"))) {
     redirect(`/gate?error=2&${qs}`);
   }
@@ -32,9 +37,15 @@ export async function gateAction(fd: FormData) {
   redirect(safeNext);
 }
 
+// 与真实用户哈希同规格的占位哈希：账号不存在时也走一次 bcrypt 比较，消除时序差（防账号枚举）
+const DUMMY_HASH = "$2b$10$YQwWT/xELFx8KmvdsyzAcuh68hB1LyJNV8GLJUFsBNe/HI36RaZ.C";
+
 export async function loginAction(fd: FormData) {
   const email = String(fd.get("email") ?? "").trim().toLowerCase();
   const password = String(fd.get("password") ?? "");
+  if (!rateLimit(`login:${await clientIp()}`, 10, 5 * 60_000)) {
+    redirect(`/login?error=7&t=${Date.now()}`);
+  }
   if (!(await verifyTurnstile(fd.get("cf-turnstile-response"), "sb-login"))) {
     redirect(`/login?error=2&t=${Date.now()}`);
   }
@@ -43,7 +54,8 @@ export async function loginAction(fd: FormData) {
     // SSO 账号必须走明旸账号登录，本地密码不可用
     redirect(`/login?error=3&t=${Date.now()}`);
   }
-  if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
+  const ok = await bcrypt.compare(password, user?.passwordHash ?? DUMMY_HASH);
+  if (!user || !ok) {
     redirect(`/login?error=1&t=${Date.now()}`);
   }
   await setSessionCookie({ uid: user.id, role: user.role as "PARENT" | "TUTOR" | "ADMIN", name: user.name });
@@ -59,6 +71,9 @@ export async function registerAction(fd: FormData) {
   const back = (code: string) =>
     redirect(`/register?role=${role}&error=${code}&t=${Date.now()}`);
 
+  if (!rateLimit(`register:${await clientIp()}`, 5, 60 * 60_000)) {
+    return back("ratelimit");
+  }
   if (!(await verifyTurnstile(fd.get("cf-turnstile-response"), "sb-register"))) {
     return back("captcha");
   }
@@ -87,6 +102,7 @@ export async function logoutAction() {
   jar.delete(SESSION_COOKIE);
   jar.delete(GATE_COOKIE);
   jar.delete("sb_sso_state");
+  jar.delete("sb_sso_anon");
   // 联动注销明旸账号会话（真·重新认证：下次登录需重走密码 + 动态口令）；
   // login 服务校验回跳白名单后回到学桥。env 缺失时降级为本地退出。
   const issuer = process.env.SSO_ISSUER;

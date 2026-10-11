@@ -134,7 +134,11 @@ export default async function DemandDetailPage({
                         <Link href={`/tutors/${t.id}`} className="font-serifcn font-black text-lg link-slide">
                           {t.user.name}
                         </Link>
-                        <span className="badge badge-ok">已认证</span>
+                        {t.auditStatus === "APPROVED" ? (
+                          <span className="badge badge-ok">已认证</span>
+                        ) : (
+                          <span className="badge">重新核验中</span>
+                        )}
                         <span className={APP_STATUS[app.status]?.cls}>{APP_STATUS[app.status]?.label}</span>
                       </div>
                       <p className="text-[12.5px] text-dim mt-1">

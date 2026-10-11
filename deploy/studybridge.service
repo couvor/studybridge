@@ -15,11 +15,13 @@ StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=studybridge
 
-# 安全加固（与 loginapp 同规格）
+# 安全加固：strict 只读全盘，仅放行运行期必须可写的三处——
+# uploads/（本地回退上传）、prisma/（SQLite 库与 journal）、.next/cache（Next 运行期缓存）。
+# 源码 / .next 构建产物 / .env 对服务进程只读，RCE 也无法改写源码持久化。
 NoNewPrivileges=true
-ProtectSystem=full
+ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/www/wwwroot/studybridge
+ReadWritePaths=/www/wwwroot/studybridge/uploads /www/wwwroot/studybridge/prisma /www/wwwroot/studybridge/.next/cache
 PrivateTmp=true
 
 [Install]
