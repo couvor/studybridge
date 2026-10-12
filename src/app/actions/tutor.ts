@@ -61,6 +61,7 @@ export async function updateTutorProfileAction(fd: FormData) {
   const mode = ["ONLINE", "OFFLINE", "BOTH"].includes(String(fd.get("mode"))) ? String(fd.get("mode")) : "BOTH";
   const subjectIds = fd.getAll("subjects").map(String).filter(Boolean);
   const phone = String(fd.get("phone") ?? "").trim();
+  const name = String(fd.get("name") ?? "").trim();
 
   let cardName = "";
   let transcriptName = "";
@@ -92,7 +93,12 @@ export async function updateTutorProfileAction(fd: FormData) {
       subjects: { set: subjects.map((x) => ({ id: x.id })) },
     },
   });
-  if (phone) await db.user.update({ where: { id: s.uid }, data: { phone } });
+  if (phone || name) {
+    await db.user.update({
+      where: { id: s.uid },
+      data: { ...(name ? { name } : {}), ...(phone ? { phone } : {}) },
+    });
+  }
 
   if (hasNewMaterial) {
     const admins = await db.user.findMany({ where: { role: "ADMIN" }, select: { id: true } });

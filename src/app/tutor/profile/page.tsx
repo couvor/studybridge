@@ -57,6 +57,14 @@ export default async function TutorProfilePage({
       </div>
 
       <form action={updateTutorProfileAction} className="card p-7 lg:p-9 space-y-6" encType="multipart/form-data">
+        {/* 账户基础信息：姓名 + 联系电话（其余联系方式见下方档案字段） */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          <div>
+            <label className="label" htmlFor="name">姓名 / Name</label>
+            <input id="name" name="name" className="input" defaultValue={user.name} placeholder="展示给家长与平台的称呼" />
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
           <div>
             <label className="label" htmlFor="university">学校 / University</label>

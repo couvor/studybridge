@@ -22,6 +22,7 @@ export default async function ParentLayout({ children }: { children: React.React
             <SectionNav
               items={[
                 { href: "/parent", label: "总览" },
+                { href: "/parent/profile", label: "个人信息" },
                 { href: "/parent/demands", label: "我的需求", badge: pendingApps || undefined },
                 { href: "/parent/orders", label: "撮合单" },
               ]}
