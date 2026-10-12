@@ -44,6 +44,10 @@ export async function GET(req: Request) {
   let sub = "";
   let username = "";
   let displayName = "";
+  // 明旸账号侧的联系方式：邮箱仅在已验证时可信（用于落库），电话直接同步为联系字段
+  let ssoEmail = "";
+  let ssoEmailVerified = false;
+  let ssoPhone = "";
   try {
     const res = await fetch(`${issuer}/sso/verify`, {
       method: "POST",
@@ -53,10 +57,20 @@ export async function GET(req: Request) {
       cache: "no-store",
     });
     if (!res.ok) return fail("4");
-    const data = (await res.json()) as { sub?: string; username?: string; displayName?: string };
+    const data = (await res.json()) as {
+      sub?: string;
+      username?: string;
+      displayName?: string;
+      email?: string | null;
+      emailVerified?: boolean;
+      phone?: string | null;
+    };
     sub = String(data.sub ?? "");
     username = String(data.username ?? "");
     displayName = String(data.displayName ?? username);
+    ssoEmail = String(data.email ?? "").trim().toLowerCase();
+    ssoEmailVerified = data.emailVerified === true;
+    ssoPhone = String(data.phone ?? "").trim();
   } catch {
     return fail("4");
   }
@@ -73,7 +87,8 @@ export async function GET(req: Request) {
   let user = await db.user.findUnique({ where: { ssoSub: sub } });
   if (!user) {
     // 首次 SSO 登录：建立本地用户（密码哈希为随机占位，不可用于本地登录）
-    const email = `${username}@login.mingyanginfo.com`.toLowerCase();
+    // 邮箱优先用明旸账号侧已验证的真实邮箱，拿不到才退回占位域邮箱
+    const email = ssoEmailVerified && ssoEmail ? ssoEmail : `${username}@login.mingyanginfo.com`;
     const clash = await db.user.findUnique({ where: { email } });
     if (clash) return fail("6");
     user = await db.user.create({
@@ -83,16 +98,30 @@ export async function GET(req: Request) {
         rolePending: !isAdmin,
         role: isAdmin ? "ADMIN" : "PARENT", // 非运营账号为临时占位，/welcome 选择后覆盖
         email,
+        phone: ssoPhone,
         name: displayName || username,
         passwordHash: await bcrypt.hash(randomBytes(24).toString("hex"), 10),
       },
     });
-  } else if (isAdmin && (user.role !== "ADMIN" || user.rolePending)) {
+  } else {
     // 白名单账号（含此前以其他角色登录过的）：升级为运营、跳过选身份
-    user = await db.user.update({
-      where: { id: user.id },
-      data: { role: "ADMIN", rolePending: false },
-    });
+    if (isAdmin && (user.role !== "ADMIN" || user.rolePending)) {
+      user = await db.user.update({
+        where: { id: user.id },
+        data: { role: "ADMIN", rolePending: false },
+      });
+    }
+    // 资料自愈：每次登录同步明旸账号侧联系方式。
+    // 电话直接同步；邮箱须已验证且未被其他账号占用（email 是本站唯一登录标识）。
+    const patch: { phone?: string; email?: string } = {};
+    if (ssoPhone && ssoPhone !== user.phone) patch.phone = ssoPhone;
+    if (ssoEmailVerified && ssoEmail && ssoEmail !== user.email) {
+      const clash = await db.user.findUnique({ where: { email: ssoEmail } });
+      if (!clash || clash.id === user.id) patch.email = ssoEmail;
+    }
+    if (Object.keys(patch).length > 0) {
+      user = await db.user.update({ where: { id: user.id }, data: patch });
+    }
   }
 
   await setSessionCookie({
