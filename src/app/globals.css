@@ -251,6 +251,17 @@ body {
   color: #e5484d;
 }
 
+/* 危险操作的确认钮：与 btn-primary 同构的实心形态，仅用于不可逆动作的最终确认 */
+.btn-danger-solid {
+  background: #e5484d;
+  border-color: #e5484d;
+  color: #fff;
+}
+.btn-danger-solid:hover {
+  background: color-mix(in srgb, #e5484d 86%, black);
+  box-shadow: 0 8px 30px color-mix(in srgb, #e5484d 32%, transparent);
+}
+
 /* ---------- 链接 ---------- */
 
 .link-slide {

@@ -61,44 +61,33 @@ export default function DeleteUserButton({
 
   return (
     <>
-      <button
-        type="button"
-        className="btn btn-sm"
-        style={{ color: "#e0666a" }}
-        onClick={() => setOpen(true)}
-      >
+      <button type="button" className="btn btn-sm btn-danger" onClick={() => setOpen(true)}>
         删除
       </button>
       {open && (
         <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
           onClick={close}
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,.45)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 50,
-            padding: 16,
-          }}
         >
           <div
-            className="card"
-            style={{ maxWidth: 460, width: "100%" }}
+            className="card w-full max-w-[460px] max-h-[90vh] overflow-y-auto p-7 lg:p-8 rise-1"
             onClick={(e) => e.stopPropagation()}
           >
-            <p className="font-serifcn font-black text-lg" style={{ color: "#e0666a" }}>
-              删除用户？此操作不可撤销
-            </p>
-            <p className="text-[13px] text-mute mt-2 leading-[1.9]">
-              将永久删除 <b>{userName}</b>（{userEmail}）的账号，同时移除其教员档案（若有）、
-              发布的求教单、相关撮合单、课时记录与评价。账号与其历史数据均无法恢复。
+            <div className="flex items-center justify-between gap-3">
+              <p className="eyebrow"><span className="rule" />Danger zone</p>
+              <span className="badge badge-bad">不可逆</span>
+            </div>
+
+            <h2 className="font-serifcn font-black text-2xl mt-4">删除用户</h2>
+            <p className="text-[13.5px] leading-[1.9] text-mute mt-3">
+              将永久删除 <b className="text-fg">{userName}</b>
+              （<span className="mono text-[12px]">{userEmail}</span>）的账号，并一并移除其
+              教员档案、求教单、撮合单、课时记录与评价。
             </p>
 
-            <div className="mt-4">
+            <div className="mt-6 border-t border-line pt-5">
               <label className="label" htmlFor={`del-${userId}`}>
-                二次验证：请输入该用户的邮箱以确认
+                二次验证 / 键入该用户邮箱以确认
               </label>
               <input
                 id={`del-${userId}`}
@@ -109,29 +98,22 @@ export default function DeleteUserButton({
                 autoComplete="off"
                 spellCheck={false}
               />
-              <p className="help mt-1.5">需与账号邮箱完全一致：{userEmail}</p>
+              <p className="help mt-2">需与账号邮箱完全一致，「确认删除」才可点击。</p>
             </div>
 
             {error && (
-              <p className="text-[13px] mt-3" style={{ color: "#e0666a" }}>
-                {error}
-              </p>
+              <p className="text-[13px] mt-3 text-[#e0666a]">{error}</p>
             )}
 
-            <div className="flex gap-2 mt-4">
-              <button type="button" className="btn btn-block" onClick={close} disabled={loading}>
+            <div className="flex gap-3 mt-6">
+              <button type="button" className="btn flex-1" onClick={close} disabled={loading}>
                 取消
               </button>
               <button
                 type="button"
-                className="btn btn-primary btn-block"
+                className={`btn flex-1 ${matched ? "btn-danger-solid" : ""}`}
                 onClick={handleConfirm}
                 disabled={loading || !matched}
-                style={
-                  !matched
-                    ? undefined
-                    : { background: "#e0666a", borderColor: "#e0666a" }
-                }
               >
                 {loading ? "删除中…" : "确认删除"}
               </button>
