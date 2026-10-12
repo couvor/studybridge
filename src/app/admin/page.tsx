@@ -1,9 +1,18 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
+import {
+  readSiteTotal,
+  summarizeSiteTotal,
+  formatTraffic,
+  formatNum,
+} from "@/lib/siteTotal";
 
 export default async function AdminHome() {
   await requireRole("ADMIN");
+
+  const site = summarizeSiteTotal(readSiteTotal());
+  const latestSite = site.latest;
 
   const [pendingAudits, pendingDemands, openDemands, activeOrders, finishedOrders, tutorTotal, parentTotal] =
     await Promise.all([
@@ -58,6 +67,29 @@ export default async function AdminHome() {
           </div>
         ))}
       </div>
+
+      {latestSite && (
+        <div className="card-2 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <p className="mono text-[10px] tracking-[0.25em] text-dim uppercase">Site Traffic / 站点访问（site_total）</p>
+            <Link href="/admin/analytics" className="mono text-[11px] text-accent-soft hover:underline">查看趋势 →</Link>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+            {[
+              { l: "今日 UV", v: latestSite.uv },
+              { l: "今日 IP", v: latestSite.ip },
+              { l: "今日 PV", v: latestSite.pv },
+              { l: "今日请求", v: latestSite.request },
+              { l: "今日流量", v: formatTraffic(latestSite.traffic) },
+            ].map((x) => (
+              <div key={x.l}>
+                <p className="stat-num !text-[clamp(1.5rem,2.4vw,2.1rem)]">{typeof x.v === "number" ? formatNum(x.v) : x.v}</p>
+                <p className="mono text-[9px] tracking-[0.18em] text-dim mt-2">{x.l}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="card-2 p-6">
         <p className="mono text-[10px] tracking-[0.25em] text-dim uppercase mb-3">Tips / 运营手册</p>

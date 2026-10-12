@@ -26,6 +26,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
                 { href: "/admin/recommends", label: "人工撮合" },
                 { href: "/admin/orders", label: "订单总览" },
                 { href: "/admin/users", label: "用户管理" },
+                { href: "/admin/analytics", label: "流量分析" },
               ]}
             />
           </aside>
