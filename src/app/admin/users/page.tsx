@@ -2,6 +2,7 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { fmtDate } from "@/lib/constants";
+import ResetPasswordButton from "@/components/admin/ResetPasswordButton";
 
 export const metadata = { title: "用户管理 · 学桥" };
 
@@ -16,7 +17,7 @@ export default async function AdminUsersPage({
 }: {
   searchParams: Promise<{ role?: string }>;
 }) {
-  await requireRole("ADMIN");
+  const admin = await requireRole("ADMIN");
   const { role } = await searchParams;
   const filter = role && ["PARENT", "TUTOR", "ADMIN"].includes(role) ? role : undefined;
 
@@ -44,7 +45,7 @@ export default async function AdminUsersPage({
       <div className="overflow-x-auto card">
         <table className="tbl">
           <thead>
-            <tr><th>姓名</th><th>角色</th><th>邮箱</th><th>电话</th><th>教员信息</th><th>注册时间</th></tr>
+            <tr><th>姓名</th><th>角色</th><th>邮箱</th><th>电话</th><th>教员信息</th><th>注册时间</th><th>操作</th></tr>
           </thead>
           <tbody>
             {users.map((u) => (
@@ -59,6 +60,13 @@ export default async function AdminUsersPage({
                     : "—"}
                 </td>
                 <td className="mono text-[11px] text-dim">{fmtDate(u.createdAt)}</td>
+                <td>
+                  <ResetPasswordButton
+                    userId={u.id}
+                    userName={u.name}
+                    disabled={u.id === admin.uid}
+                  />
+                </td>
               </tr>
             ))}
           </tbody>

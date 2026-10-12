@@ -16,6 +16,7 @@ export type SessionPayload = {
   role: "PARENT" | "TUTOR" | "ADMIN";
   name: string;
   rp?: boolean; // SSO 首登待选角色（rolePending）
+  mcp?: boolean; // 必须改密（must change password）：管理员重置本地账号密码后置位
 };
 
 export async function signSession(p: SessionPayload) {
@@ -36,6 +37,7 @@ export async function verifySessionToken(token?: string): Promise<SessionPayload
       role: payload.role as SessionPayload["role"],
       name: String(payload.name ?? ""),
       rp: payload.rp === true,
+      mcp: payload.mcp === true,
     };
   } catch {
     return null;

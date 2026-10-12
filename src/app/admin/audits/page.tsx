@@ -24,6 +24,7 @@ export default async function AdminAuditsPage({
     orderBy: { updatedAt: "desc" },
     take: 8,
   });
+  const auditLogs = await db.adminAuditLog.findMany({ orderBy: { createdAt: "desc" }, take: 20 });
 
   return (
     <div className="space-y-10">
@@ -117,6 +118,31 @@ export default async function AdminAuditsPage({
                       </span>
                     </td>
                     <td className="mono text-[12px] text-dim">{t.user.email}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
+      {auditLogs.length > 0 && (
+        <section>
+          <p className="mono text-[10px] tracking-[0.28em] text-dim uppercase mb-4">Admin Audit / 管理操作日志</p>
+          <div className="overflow-x-auto card">
+            <table className="tbl">
+              <thead>
+                <tr><th>时间</th><th>操作</th><th>操作人</th><th>目标用户</th><th>角色</th><th>IP</th></tr>
+              </thead>
+              <tbody>
+                {auditLogs.map((a) => (
+                  <tr key={a.id}>
+                    <td className="mono text-[11px] text-dim">{fmtDate(a.createdAt)}</td>
+                    <td className="text-[13px]">{a.action === "RESET_PASSWORD" ? "重置密码" : a.action}</td>
+                    <td className="text-mute">{a.actorName}</td>
+                    <td className="mono text-[12px] text-dim">{a.targetEmail}</td>
+                    <td><span className="badge">{a.targetRole}</span></td>
+                    <td className="mono text-[11px] text-dim">{a.ip || "—"}</td>
                   </tr>
                 ))}
               </tbody>

@@ -58,7 +58,13 @@ export async function loginAction(fd: FormData) {
   if (!user || !ok) {
     redirect(`/login?error=1&t=${Date.now()}`);
   }
-  await setSessionCookie({ uid: user.id, role: user.role as "PARENT" | "TUTOR" | "ADMIN", name: user.name });
+  // 管理员刚重置过密码 → 标记必须改密，由 middleware 强制跳转到改密页。
+  await setSessionCookie({
+    uid: user.id,
+    role: user.role as "PARENT" | "TUTOR" | "ADMIN",
+    name: user.name,
+    ...(user.forcePasswordChange ? { mcp: true } : {}),
+  });
   redirect(homeByRole(user.role));
 }
 
@@ -130,4 +136,23 @@ export async function chooseRoleAction(fd: FormData) {
   });
   await setSessionCookie({ uid: s.uid, role, name: s.name });
   redirect(homeByRole(role));
+}
+
+// 管理员重置本地账号后，强制用户首次登录改密。
+export async function changePasswordAction(fd: FormData) {
+  const s = await getSession();
+  if (!s) redirect("/login");
+  if (!s.mcp) redirect(homeByRole(s.role));
+  const newPw = String(fd.get("password") ?? "");
+  const newPw2 = String(fd.get("password2") ?? "");
+  if (newPw.length < 8 || newPw !== newPw2) {
+    redirect("/account/change-password?error=1");
+  }
+  await db.user.update({
+    where: { id: s.uid },
+    data: { passwordHash: await bcrypt.hash(newPw, 10), forcePasswordChange: false },
+  });
+  // 重新签发会话（去掉 mcp 标记），即可正常进入系统
+  await setSessionCookie({ uid: s.uid, role: s.role, name: s.name });
+  redirect(homeByRole(s.role));
 }

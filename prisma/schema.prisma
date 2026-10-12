@@ -20,6 +20,8 @@ model User {
   ssoSub       String?        @unique
   authSource   String         @default("LOCAL")
   rolePending  Boolean        @default(false)
+  // 管理员重置密码后置位：下次本地登录强制先改密（SSO 账号的改密由 loginapp 负责）。
+  forcePasswordChange Boolean  @default(false)
   createdAt    DateTime       @default(now())
   tutorProfile TutorProfile?
   demands      Demand[]
@@ -147,4 +149,21 @@ model Notification {
   link      String   @default("")
   read      Boolean  @default(false)
   createdAt DateTime @default(now())
+}
+
+// 管理操作审计日志（运营在后台执行的高风险操作，如重置密码）。
+model AdminAuditLog {
+  id           String   @id @default(cuid())
+  actorId      String // 操作的管理员用户 id
+  actorName    String
+  actorRole    String
+  targetId     String
+  targetEmail  String
+  targetRole   String
+  action       String // RESET_PASSWORD 等
+  detail       String   @default("")
+  ip           String   @default("")
+  createdAt    DateTime @default(now())
+
+  @@index([createdAt])
 }

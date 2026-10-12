@@ -1,7 +1,10 @@
 "use server";
 
+import { randomBytes } from "crypto";
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { push } from "@/lib/notify";
@@ -105,4 +108,119 @@ export async function adminMatchAction(fd: FormData) {
   revalidatePath("/admin/recommends");
   revalidatePath("/admin/orders");
   redirect("/admin/recommends?done=1");
+}
+
+// ---------- 密码重置（运营后台）----------
+
+// 生成 16 位强随机临时密码（大小写 + 数字 + 符号，避开易混淆字符）。
+function genStrongPassword(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%^&*";
+  const buf = randomBytes(16);
+  let out = "";
+  for (let i = 0; i < 16; i++) out += chars[buf[i] % chars.length];
+  return out;
+}
+
+// 联动 loginapp（SSO 账号密码与 2FA 所在地）：重置密码 + 清 2FA + 强制改密 + 踢会话。
+async function callLoginappReset(ssoSub: string | null, newPassword: string): Promise<boolean> {
+  if (!ssoSub) return false;
+  const token = process.env.LOGINAPP_ADMIN_TOKEN;
+  if (!token) {
+    console.error("[admin] LOGINAPP_ADMIN_TOKEN 未配置，无法联动 loginapp 重置 SSO 账号");
+    return false;
+  }
+  try {
+    const res = await fetch("http://127.0.0.1:3000/admin/api/reset-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ ssoSub, newPassword }),
+    });
+    if (!res.ok) {
+      console.error(`[admin] loginapp 重置失败: ${res.status} ${await res.text()}`);
+      return false;
+    }
+    return true;
+  } catch (e) {
+    console.error("[admin] loginapp 重置请求异常", e);
+    return false;
+  }
+}
+
+async function writeResetAudit(data: {
+  actorId: string;
+  actorName: string;
+  actorRole: string;
+  targetId: string;
+  targetEmail: string;
+  targetRole: string;
+  action: string;
+  detail?: string;
+}) {
+  try {
+    const h = await headers();
+    const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || "";
+    await db.adminAuditLog.create({
+      data: {
+        actorId: data.actorId,
+        actorName: data.actorName,
+        actorRole: data.actorRole,
+        targetId: data.targetId,
+        targetEmail: data.targetEmail,
+        targetRole: data.targetRole,
+        action: data.action,
+        detail: data.detail || "",
+        ip,
+      },
+    });
+  } catch (e) {
+    console.error("[admin] 审计写入失败", e);
+  }
+}
+
+// 运营重置某用户密码：生成随机强密码；LOCAL 账号改本地哈希，SSO 账号联动 loginapp；
+// 返回临时密码供一次性展示（绝不写日志 / 不进 URL）。禁止管理员重置自己。
+export async function adminResetPasswordAction(
+  fd: FormData
+): Promise<{ ok: boolean; tempPassword?: string; error?: string }> {
+  const admin = await requireRole("ADMIN");
+  const targetId = String(fd.get("userId") ?? "").trim();
+  if (!targetId) return { ok: false, error: "缺少用户标识" };
+  if (targetId === admin.uid) return { ok: false, error: "不能重置自己的账号" };
+
+  const target = await db.user.findUnique({ where: { id: targetId } });
+  if (!target) return { ok: false, error: "用户不存在" };
+
+  const newPw = genStrongPassword();
+  if (target.authSource === "SSO") {
+    const ok = await callLoginappReset(target.ssoSub, newPw);
+    if (!ok) return { ok: false, error: "联动登录服务失败，未修改任何数据" };
+  } else {
+    await db.user.update({
+      where: { id: targetId },
+      data: { passwordHash: await bcrypt.hash(newPw, 10), forcePasswordChange: true },
+    });
+  }
+
+  // 站内通知（登录后可看到；临时密码不进通知正文）
+  await push(
+    target.id,
+    "SECURITY",
+    "您的登录密码已被平台管理员重置，请使用新密码登录，并重新完成二次验证设置。",
+    "/"
+  );
+
+  await writeResetAudit({
+    actorId: admin.uid,
+    actorName: admin.name,
+    actorRole: admin.role,
+    targetId: target.id,
+    targetEmail: target.email,
+    targetRole: target.role,
+    action: "RESET_PASSWORD",
+    detail: `authSource=${target.authSource}`,
+  });
+
+  revalidatePath("/admin/users");
+  // 仅返回临时密码用于一次性展示，绝不落盘日志或拼进跳转 URL
+  return { ok: true, tempPassword: newPw };
 }

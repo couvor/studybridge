@@ -46,6 +46,10 @@ export async function middleware(req: NextRequest) {
   if ((seg === "parent" || seg === "tutor" || seg === "admin") && session?.role !== seg.toUpperCase()) {
     return redirectTo(req, session ? ROLE_HOME[session.role] : "/login");
   }
+  // 强制改密：必须改密的用户只放行改密页与登出，其余一律拦截
+  if (session?.mcp && pathname !== "/account/change-password" && pathname !== "/logout") {
+    return redirectTo(req, "/account/change-password");
+  }
   if ((pathname === "/login" || pathname === "/register") && session) {
     return redirectTo(req, session.rp ? "/welcome" : (ROLE_HOME[session.role] ?? "/"));
   }
