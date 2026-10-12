@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { fmtDate } from "@/lib/constants";
 import ResetPasswordButton from "@/components/admin/ResetPasswordButton";
+import DeleteUserButton from "@/components/admin/DeleteUserButton";
 
 export const metadata = { title: "用户管理 · 学桥" };
 
@@ -15,10 +16,10 @@ const ROLE_BADGE: Record<string, { label: string; cls: string }> = {
 export default async function AdminUsersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ role?: string }>;
+  searchParams: Promise<{ role?: string; deleted?: string }>;
 }) {
   const admin = await requireRole("ADMIN");
-  const { role } = await searchParams;
+  const { role, deleted } = await searchParams;
   const filter = role && ["PARENT", "TUTOR", "ADMIN"].includes(role) ? role : undefined;
 
   const users = await db.user.findMany({
@@ -34,6 +35,12 @@ export default async function AdminUsersPage({
         <p className="mono text-[10px] tracking-[0.32em] text-dim uppercase">Users / 用户管理</p>
         <h1 className="font-serifcn font-black text-3xl mt-3">注册用户</h1>
       </div>
+
+      {deleted === "1" && (
+        <div className="card-2 border-l-2 !border-l-accent px-5 py-4">
+          <p className="text-[13.5px]">用户已删除，相关档案、求教单与撮合单已一并清理（审计日志已记录）。</p>
+        </div>
+      )}
 
       <div className="flex flex-wrap gap-2">
         <Link href="/admin/users" className={`btn btn-sm ${!filter ? "btn-primary" : ""}`}>全部</Link>
@@ -61,11 +68,19 @@ export default async function AdminUsersPage({
                 </td>
                 <td className="mono text-[11px] text-dim">{fmtDate(u.createdAt)}</td>
                 <td>
-                  <ResetPasswordButton
-                    userId={u.id}
-                    userName={u.name}
-                    disabled={u.id === admin.uid}
-                  />
+                  <div className="flex flex-wrap items-center gap-2">
+                    <ResetPasswordButton
+                      userId={u.id}
+                      userName={u.name}
+                      disabled={u.id === admin.uid}
+                    />
+                    <DeleteUserButton
+                      userId={u.id}
+                      userName={u.name}
+                      userEmail={u.email}
+                      disabled={u.id === admin.uid}
+                    />
+                  </div>
                 </td>
               </tr>
             ))}
