@@ -27,7 +27,8 @@ export default function Footer() {
           <div className="lg:col-span-2">
             <p className="mono text-[10px] tracking-[0.32em] text-dim uppercase mb-4">Contact / 联络</p>
             <div className="flex flex-col gap-2.5 text-[13.5px] text-mute">
-              <span>hello@studybridge.cn</span>
+              <a href="mailto:hello@mingyanginfo.com" className="link-slide w-fit">hello@mingyanginfo.com</a>
+              <span className="mono text-[11px]">x.mingyanginfo.com</span>
               <span className="mono text-[11px]">EST. 2026</span>
             </div>
           </div>

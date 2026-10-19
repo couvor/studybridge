@@ -7,6 +7,48 @@ import { logoutAction } from "@/app/actions/auth";
 
 type NavSession = { name: string; role: "PARENT" | "TUTOR" | "ADMIN" } | null;
 
+// 移动端菜单卡片：图标 + 双语标题 + 一行说明。
+// 只放公开入口，账户操作放在下面的 Account 区，避免菜单变成一列纯文字。
+const NAV_CARDS = [
+  {
+    href: "/tutors",
+    en: "Tutor library",
+    zh: "教员库",
+    desc: "已认证的大学生教员档案",
+    icon: (
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M4 5.5h6.5a2 2 0 0 1 2 2v11a2 2 0 0 0-2-2H4z" />
+        <path d="M20 5.5h-6.5a2 2 0 0 0-2 2v11a2 2 0 0 1 2-2H20z" />
+      </svg>
+    ),
+  },
+  {
+    href: "/#process",
+    en: "Process",
+    zh: "撮合流程",
+    desc: "发布 · 报名 · 成单 · 互评",
+    icon: (
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M5 6h6M5 12h10M5 18h4" />
+        <circle cx="18" cy="6" r="1.6" />
+        <circle cx="18" cy="18" r="1.6" />
+      </svg>
+    ),
+  },
+  {
+    href: "/#trust",
+    en: "Trust",
+    zh: "互信机制",
+    desc: "认证、试听与双向互评",
+    icon: (
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 3.5 19 6v6.2c0 4-3 6.6-7 8.3-4-1.7-7-4.3-7-8.3V6z" />
+        <path d="m9.2 12 2 2 3.6-3.8" />
+      </svg>
+    ),
+  },
+];
+
 export default function Navbar({ session, unread = 0 }: { session: NavSession; unread?: number }) {
   const [open, setOpen] = useState(false);
   const navRef = useRef<HTMLElement>(null);
@@ -105,25 +147,47 @@ export default function Navbar({ session, unread = 0 }: { session: NavSession; u
         </nav>
 
         {open && (
-          <div className="md:hidden glass rounded-2xl mt-2 p-6 rise-1">
-            <div className="flex flex-col gap-5 text-[15px]">
-              <Link href="/tutors" onClick={() => setOpen(false)} className="link-slide w-fit">教员库</Link>
-              <Link href="/#process" onClick={() => setOpen(false)} className="link-slide w-fit">撮合流程</Link>
-              <Link href="/#trust" onClick={() => setOpen(false)} className="link-slide w-fit">互信机制</Link>
-              <div className="h-px bg-line my-1" />
+          <div className="md:hidden menu-panel rounded-2xl mt-2 p-3 rise-1">
+            <div className="flex flex-col gap-2">
+              {NAV_CARDS.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setOpen(false)}
+                  className="nav-card group"
+                >
+                  <span className="nav-icon">{item.icon}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="mono block text-[9px] uppercase tracking-[0.26em] text-dim">
+                      {item.en}
+                    </span>
+                    <span className="mt-0.5 block font-serifcn text-[15px] font-black leading-tight">
+                      {item.zh}
+                    </span>
+                    <span className="mt-1 block text-[11px] leading-snug text-mute">{item.desc}</span>
+                  </span>
+                  <span className="mono text-[11px] text-dim transition-colors duration-300 group-hover:text-accent-soft">
+                    ↗
+                  </span>
+                </Link>
+              ))}
+
+              <p className="mono px-1 pt-2 pb-0.5 text-[9px] uppercase tracking-[0.3em] text-dim">
+                Account / 账户
+              </p>
               {session ? (
-                <>
+                <div className="flex flex-col gap-2">
                   <Link href={home} onClick={() => setOpen(false)} className="btn w-full">{consoleLabel}</Link>
                   <Link href="/notifications" onClick={() => setOpen(false)} className="btn btn-ghost w-full">通知中心</Link>
                   <form action={logoutAction}>
                     <button className="btn btn-ghost w-full">退出登录</button>
                   </form>
-                </>
+                </div>
               ) : (
-                <>
+                <div className="flex flex-col gap-2">
                   <Link href="/login" onClick={() => setOpen(false)} className="btn w-full">登录</Link>
                   <Link href="/register" onClick={() => setOpen(false)} className="btn btn-primary w-full">注册</Link>
-                </>
+                </div>
               )}
             </div>
           </div>

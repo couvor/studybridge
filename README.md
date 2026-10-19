@@ -33,7 +33,7 @@
 
 | 角色 | 邮箱 | 预置状态 |
 |---|---|---|
-| 运营 | admin@studybridge.cn | 认证队列有 2 人待审、需求队列有 1 条待审 |
+| 运营 | admin@mingyanginfo.com | 认证队列有 2 人待审、需求队列有 1 条待审 |
 | 家长 | parent@demo.cn | D-0001（考研数学）有 2 份待确认报名；O-0002 已完结待评价 |
 | 教员 | tutor@demo.cn（沈亦舟） | 已认证，报名记录待家长确认 |
 | 待审核教员 | tutornew1@demo.cn（秦朗） | 材料待审核，可体验后台审核闭环 |
@@ -110,7 +110,7 @@ ls /root/firewalld-backup-*.tar.gz
 **运营账号**：明旸用户名列入 `.env` 的 `SSO_ADMIN_USERNAMES`（逗号分隔，不区分大小写）即自动获得
 ADMIN 角色、跳过选身份直进 `/admin`；当前白名单：`couv`、`zhougaofan`。
 ⚠️ 若某白名单账号要从 login 服务删除，务必同步把它从白名单移除（否则该用户名被他人注册后会误获运营权限）。
-登录页已无本地表单；本地 `admin@studybridge.cn` 保留在库中备用（login 服务故障时可临时恢复表单入口，或直接运维处理）。
+登录页已无本地表单；本地 `admin@mingyanginfo.com` 保留在库中备用（login 服务故障时可临时恢复表单入口，或直接运维处理）。
 
 **退出（2026-10-10 定稿）**：退出时清 `sb_session` / `sb_gate` / `sb_sso_state` 三个 cookie，
 并**联动注销明旸账号会话**（跳 login 服务 `/logout?next=…`，白名单校验后回学桥）——

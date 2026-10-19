@@ -18,6 +18,10 @@
   --line-strong: rgba(236, 234, 228, 0.18);
   --glass-bg: rgba(10, 10, 12, 0.72);
   --grain-opacity: 0.05;
+  /* 卡片：发丝边框 + 圆角 + 大柔和阴影（规范 §5），阴影只做氛围，不抢内容 */
+  --radius-card: 14px;
+  --card-shadow: 0 26px 64px -34px rgba(0, 0, 0, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --card-shadow-hover: 0 32px 78px -34px rgba(0, 0, 0, 0.95), inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 :root.light {
@@ -33,6 +37,8 @@
   --line-strong: rgba(23, 23, 27, 0.22);
   --glass-bg: rgba(244, 241, 234, 0.78);
   --grain-opacity: 0.045;
+  --card-shadow: 0 24px 56px -34px rgba(23, 23, 27, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.75);
+  --card-shadow-hover: 0 30px 70px -34px rgba(23, 23, 27, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
 @theme inline {
@@ -304,13 +310,102 @@ a.row-item:hover {
 
 /* ---------- 卡片与表格 ---------- */
 
+/* 规范 §5：发丝边框 + 圆角 lg~2xl + 大柔和阴影。
+   之前只有 surface + 1px 边框、方角无阴影，页面上像"贴上去的色块"；
+   补上圆角、柔和投影与一档极轻的内高光，卡片才有实体感而不显生硬。 */
+.card,
+.card-2 {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  box-shadow: var(--card-shadow);
+  transition:
+    border-color 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
 .card {
   background: var(--surface);
-  border: 1px solid var(--line);
 }
 .card-2 {
   background: var(--surface-2);
+}
+
+/* 可点击的卡片：悬停抬起 2px + 边框加深（规范 §8：不要弹跳缩放） */
+.card-hover:hover,
+a.card:hover,
+a.card-2:hover,
+button.card:hover {
+  border-color: var(--line-strong);
+  box-shadow: var(--card-shadow-hover);
+  transform: translateY(-2px);
+}
+.card-hover,
+a.card,
+a.card-2,
+button.card {
+  transition:
+    border-color 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .card-hover:hover,
+  a.card:hover,
+  a.card-2:hover,
+  button.card:hover {
+    transform: none;
+  }
+}
+
+/* ---------- 移动端汉堡菜单 ---------- */
+
+/* 面板要"实"：玻璃底太透会让下方大标题透上来，字叠字显得脏 */
+.menu-panel {
+  background: var(--bg);
   border: 1px solid var(--line);
+  box-shadow: 0 36px 90px -46px rgba(0, 0, 0, 0.75);
+}
+
+/* 菜单项做成真实卡片：图标块 + 双语标题 + 一行说明，触摸目标 ≥ 56px */
+.nav-card {
+  display: flex;
+  align-items: center;
+  gap: 0.8125rem;
+  padding: 0.8125rem 0.875rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: var(--card-shadow);
+  transition:
+    border-color 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.nav-card:active,
+.nav-card:hover {
+  border-color: var(--line-strong);
+  background: var(--surface-2);
+  box-shadow: var(--card-shadow-hover);
+  transform: translateY(-1px);
+}
+.nav-icon {
+  flex: none;
+  width: 2.125rem;
+  height: 2.125rem;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: var(--accent-soft);
+}
+@media (prefers-reduced-motion: reduce) {
+  .nav-card:active,
+  .nav-card:hover {
+    transform: none;
+  }
 }
 
 .tbl {

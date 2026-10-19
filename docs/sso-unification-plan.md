@@ -15,7 +15,7 @@
 > 6. **原"ADMIN 不进 SSO"决策已被用户推翻（2026-10-09 晚）**：运营账号改走明旸账号——
 >    实现为 `.env` 的 `SSO_ADMIN_USERNAMES` 用户名白名单（命中即 ADMIN、跳过选身份直进 /admin；
 >    当前含 couv、zhougaofan）；登录页本地登录表单已整体移除（纯 SSO 化），
->    本地 admin@studybridge.cn 留库备用（故障时恢复表单或运维处理）。
+>    本地 admin@mingyanginfo.com 留库备用（故障时恢复表单或运维处理）。
 >    ⚠️ 白名单账号若从 login 服务删除，必须同步移出白名单，否则用户名被他人注册会误获运营权限。
 
 > 决策（2026-10-08）：**备案通过后**，学桥接入 `login.mingyanginfo.com` 作为唯一登录入口，

@@ -102,7 +102,7 @@ async function main() {
   }
 
   console.log("写入管理员与家长…");
-  await db.user.create({ data: { role: "ADMIN", email: "admin@studybridge.cn", passwordHash: hash, name: "平台运营", phone: "13700000000" } });
+  await db.user.create({ data: { role: "ADMIN", email: "admin@mingyanginfo.com", passwordHash: hash, name: "平台运营", phone: "13700000000" } });
   const parentIds = [];
   for (const p of PARENTS) {
     const u = await db.user.create({ data: { role: "PARENT", email: p.email, passwordHash: hash, name: p.name, phone: p.phone } });
@@ -198,7 +198,7 @@ async function main() {
   });
 
   console.log("完成 ✔  demo 账号密码均为 " + PASSWORD);
-  console.log("  admin@studybridge.cn / parent@demo.cn / tutor@demo.cn");
+  console.log("  admin@mingyanginfo.com / parent@demo.cn / tutor@demo.cn");
 }
 
 main()

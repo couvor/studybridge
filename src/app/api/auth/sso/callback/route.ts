@@ -77,7 +77,7 @@ export async function GET(req: Request) {
   if (!sub || !username) return fail("4");
 
   // 运营白名单：SSO_ADMIN_USERNAMES（逗号分隔的明旸账号用户名，不区分大小写）。
-  // 命中者自动成为 ADMIN、跳过选身份，直进后台；本地 admin@studybridge.cn 保留为备用通道。
+  // 命中者自动成为 ADMIN、跳过选身份，直进后台；本地 admin@mingyanginfo.com 保留为备用通道。
   const adminUsernames = (process.env.SSO_ADMIN_USERNAMES ?? "")
     .split(",")
     .map((s) => s.trim().toLowerCase())
