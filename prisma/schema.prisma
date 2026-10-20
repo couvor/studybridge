@@ -2,9 +2,12 @@ generator client {
   provider = "prisma-client-js"
 }
 
+// 数据库：MySQL 5.7（2026-10-20 从 SQLite 迁入）。
+// 迁移原因：SQLite 单写锁 + 无网络访问，无法支撑多实例与备份需求。
+// 注意：MySQL 5.7 的 TEXT 列不允许 DEFAULT，故长文本一律用 VarChar(2000) 而非 @db.Text。
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider = "mysql"
+  url      = env("DATABASE_URL")
 }
 
 // 角色：TUTOR 教员 / PARENT 家长 / ADMIN 平台运营
@@ -45,14 +48,14 @@ model TutorProfile {
   university     String        @default("")
   major          String        @default("")
   grade          String        @default("")
-  bio            String        @default("")
-  availableTime  String        @default("")
+  bio            String        @default("") @db.VarChar(2000)
+  availableTime  String        @default("") @db.VarChar(2000)
   mode           String        @default("BOTH") // ONLINE | OFFLINE | BOTH
   region         String        @default("")
-  studentCardUrl String        @default("") // 学生证照片（存 uploads/，仅管理员与本人可见）
-  transcriptUrl  String        @default("") // 成绩单
+  studentCardUrl String        @default("") @db.VarChar(500) // 学生证照片（存 uploads/，仅管理员与本人可见）
+  transcriptUrl  String        @default("") @db.VarChar(500) // 成绩单
   auditStatus    String        @default("PENDING") // PENDING | APPROVED | REJECTED
-  auditNote      String        @default("")
+  auditNote      String        @default("") @db.VarChar(2000)
   ratingAvg      Float         @default(0)
   ratingCount    Int           @default(0)
   applications   Application[]
@@ -75,11 +78,11 @@ model Demand {
   mode         String        // ONLINE | OFFLINE
   region       String        @default("")
   frequency    String        @default("")
-  budgetNote   String        @default("") // 预算仅文字备注，平台不定价
-  description  String        @default("")
+  budgetNote   String        @default("") @db.VarChar(2000) // 预算仅文字备注，平台不定价
+  description  String        @default("") @db.VarChar(2000)
   status       String        @default("OPEN")
   reviewStatus String        @default("PENDING")
-  auditNote    String        @default("")
+  auditNote    String        @default("") @db.VarChar(2000)
   applications Application[]
   orders       Order[]
   createdAt    DateTime      @default(now())
@@ -91,7 +94,7 @@ model Application {
   demand    Demand   @relation(fields: [demandId], references: [id], onDelete: Cascade)
   tutorId   String
   tutor     TutorProfile @relation(fields: [tutorId], references: [id], onDelete: Cascade)
-  message   String   @default("")
+  message   String   @default("") @db.VarChar(2000)
   status    String   @default("PENDING") // PENDING | ACCEPTED | REJECTED
   createdAt DateTime @default(now())
 
@@ -125,7 +128,7 @@ model LessonLog {
   order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   date      DateTime
   hours     Float
-  feedback  String   @default("")
+  feedback  String   @default("") @db.VarChar(2000)
   createdAt DateTime @default(now())
 }
 
@@ -136,7 +139,7 @@ model Review {
   order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   authorRole String
   rating     Int
-  comment    String   @default("")
+  comment    String   @default("") @db.VarChar(2000)
   createdAt  DateTime @default(now())
 }
 
@@ -145,8 +148,8 @@ model Notification {
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   type      String
-  content   String
-  link      String   @default("")
+  content   String   @db.VarChar(2000)
+  link      String   @default("") @db.VarChar(500)
   read      Boolean  @default(false)
   createdAt DateTime @default(now())
 }
@@ -161,7 +164,7 @@ model AdminAuditLog {
   targetEmail  String
   targetRole   String
   action       String // RESET_PASSWORD 等
-  detail       String   @default("")
+  detail       String   @default("") @db.VarChar(2000)
   ip           String   @default("")
   createdAt    DateTime @default(now())
 
