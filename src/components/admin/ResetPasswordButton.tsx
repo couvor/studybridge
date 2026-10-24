@@ -118,8 +118,9 @@ export default function ResetPasswordButton({
                     className="btn btn-primary btn-block"
                     onClick={handleConfirm}
                     disabled={loading}
+                    aria-busy={loading}
                   >
-                    {loading ? "处理中…" : "确认重置"}
+                    确认重置
                   </button>
                 </div>
               </div>

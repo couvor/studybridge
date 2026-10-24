@@ -18,6 +18,23 @@
   --line-strong: rgba(236, 234, 228, 0.18);
   --glass-bg: rgba(10, 10, 12, 0.72);
   --grain-opacity: 0.05;
+  /* 语义色：按钮与徽章共用。底色（--danger）用于实心块，文字档（--x-ink）分主题取值 ——
+     暗底的亮绿/亮红直接搬到米纸上对比度会掉到 2.5:1，所以必须两套。 */
+  --danger: #e5484d;
+  --danger-ink: #e0666a;
+  --ok: #46a758;
+  --ok-ink: #5eb96b;
+  --warn: #f5a524;
+  --warn-ink: #e0a341;
+  /* 品牌蓝上的文字：带蓝调的白，不用纯 #fff */
+  --accent-ink: #f5f8ff;
+  /* 圆角阶梯：容器 14（卡片）/ 控件 6（按钮、输入）/ 小元件 4（徽章）。
+     全站只有这三档，新元件从这三档里挑，不要再出现 8、10、12 之类的散值。 */
+  --radius-btn: 6px;
+  --radius-chip: 4px;
+  /* 按钮的物理感：顶缘受光 + 按下时向内压出的阴影。两档都跟着主题走 */
+  --bevel: rgba(255, 255, 255, 0.05);
+  --press: inset 0 2px 5px rgba(0, 0, 0, 0.35);
   /* 卡片：发丝边框 + 圆角 + 大柔和阴影（规范 §5），阴影只做氛围，不抢内容 */
   --radius-card: 14px;
   --card-shadow: 0 26px 64px -34px rgba(0, 0, 0, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.04);
@@ -37,6 +54,15 @@
   --line-strong: rgba(23, 23, 27, 0.22);
   --glass-bg: rgba(244, 241, 234, 0.78);
   --grain-opacity: 0.045;
+  --danger: #d93a3f;
+  --danger-ink: #c2353a;
+  --ok: #3f8f4d;
+  --ok-ink: #2f7a3d;
+  --warn: #c98a12;
+  --warn-ink: #8a6100;
+  --accent-ink: #f7f9ff;
+  --bevel: rgba(255, 255, 255, 0.7);
+  --press: inset 0 2px 4px rgba(23, 23, 27, 0.12);
   --card-shadow: 0 24px 56px -34px rgba(23, 23, 27, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.75);
   --card-shadow-hover: 0 30px 70px -34px rgba(23, 23, 27, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
@@ -52,6 +78,11 @@
   --color-dim: var(--dim);
   --color-line: var(--line);
   --color-line-strong: var(--line-strong);
+  --color-danger: var(--danger);
+  --color-danger-ink: var(--danger-ink);
+  --color-ok-ink: var(--ok-ink);
+  --color-warn-ink: var(--warn-ink);
+  --color-accent-ink: var(--accent-ink);
 
   --font-serifcn: "Noto Serif SC", "Songti SC", "SimSun", serif;
   --font-serif: "Instrument Serif", "Georgia", serif;
@@ -200,72 +231,318 @@ body {
 
 /* ---------- 按钮 ---------- */
 
+/*
+ * finesse · component: button · register=product
+ * states: default · hover · focus-visible · active · disabled · loading
+ * tokens: inherited (globals.css :root)
+ */
+
+/*
+ * 尺寸令牌挂在 .btn 上，变体只改变量、不重写布局 —— 所以 .btn-sm.btn-primary
+ * 这类组合不会互相打架。加新尺寸只需再写一组三个变量。
+ */
 .btn {
+  --btn-h: 2.75rem;
+  --btn-px: 1.375rem;
+  --btn-fs: 0.875rem;
+  --btn-spin: var(--fg);
+
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  height: 2.75rem;
-  padding-inline: 1.375rem;
-  font-size: 0.875rem;
+  height: var(--btn-h);
+  padding-inline: var(--btn-px);
+  font-size: var(--btn-fs);
   font-family: var(--font-serifcn);
+  line-height: 1.2;
   letter-spacing: 0.02em;
+  white-space: nowrap;
   border: 1px solid var(--line-strong);
+  border-radius: var(--radius-btn);
   color: var(--fg);
   background: transparent;
+  /* 顶缘一道极淡的受光：方块边缘因此有厚度，不是一块贴纸 */
+  box-shadow: inset 0 1px 0 var(--bevel);
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  -webkit-tap-highlight-color: transparent;
+  /* 焦点环走 outline 且静止态就预留宽度：聚焦时不会把相邻元素挤动 */
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  transition:
+    background-color 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+    color 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.12s ease-out;
 }
-.btn:hover {
-  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
-  transform: translateY(-1px);
+
+/*
+ * 悬停只给真有指针的设备：触摸端没有 hover，给了会「点完一直亮」。
+ * 原来还叠了 translateY(-1px)，一排筛选钮会被逐个顶起来、在 sticky 栏里发晃 ——
+ * 去掉浮起，层级改由底色与边框表达；只有按下才动 1px。
+ */
+@media (hover: hover) and (pointer: fine) {
+  .btn:not(:disabled):not([aria-disabled="true"]):hover {
+    background: color-mix(in srgb, var(--fg) 4%, transparent);
+    border-color: color-mix(in srgb, var(--accent) 50%, var(--line-strong));
+  }
 }
-.btn:disabled {
-  opacity: 0.45;
+
+.btn:active {
+  transform: translateY(1px);
+  background: color-mix(in srgb, var(--fg) 8%, transparent);
+  box-shadow: var(--press);
+  transition-duration: 0.06s;
+}
+
+.btn:focus-visible {
+  outline-color: var(--accent);
+}
+
+/*
+ * 禁用：三条通道一起给（原生 disabled 属性 + 半透明 + 禁止光标）。
+ * 原来只有 opacity 加 pointer-events:none，而 pointer-events 会把 not-allowed 光标一起吃掉，
+ * 用户分不清是「不可点」还是「页面卡住」。
+ */
+.btn:disabled,
+.btn[aria-disabled="true"] {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/*
+ * loading：文字透明但仍在原位撑住宽度，换成转圈时按钮不会塌缩半截。
+ * 用 aria-busy="true" 触发（无障碍可读），.is-loading 供拿不到属性的场景。
+ */
+.btn[aria-busy="true"],
+.btn.is-loading {
+  position: relative;
+  color: transparent;
+  cursor: progress;
   pointer-events: none;
 }
+.btn[aria-busy="true"] > *,
+.btn.is-loading > * {
+  visibility: hidden;
+}
+/* 转圈时按钮多半同时被禁用，别让它跟着变半透明 —— 那看起来像坏了，不像在跑 */
+.btn[aria-busy="true"]:disabled,
+.btn.is-loading:disabled {
+  opacity: 1;
+}
+.btn[aria-busy="true"]::after,
+.btn.is-loading::after {
+  content: "";
+  position: absolute;
+  width: 1em;
+  height: 1em;
+  border-radius: 9999px;
+  border: 2px solid color-mix(in srgb, var(--btn-spin) 26%, transparent);
+  border-top-color: var(--btn-spin);
+  animation: btn-spin 0.7s linear infinite;
+}
+@keyframes btn-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .btn[aria-busy="true"]::after,
+  .btn.is-loading::after {
+    animation: none;
+  }
+}
+
+/* ---------- 按钮变体 ---------- */
 
 .btn-primary {
+  --btn-spin: var(--accent-ink);
   background: var(--accent);
   border-color: var(--accent);
-  color: #fff;
+  color: var(--accent-ink);
+  /* 实心块自带一层极浅的投影，让它从纸面上浮起来半个像素 */
+  box-shadow:
+    inset 0 1px 0 var(--bevel),
+    0 1px 3px color-mix(in srgb, var(--accent) 30%, transparent);
 }
-.btn-primary:hover {
-  background: color-mix(in srgb, var(--accent) 88%, white);
-  box-shadow: 0 8px 30px color-mix(in srgb, var(--accent) 35%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .btn-primary:not(:disabled):not([aria-disabled="true"]):hover {
+    background: color-mix(in srgb, var(--accent) 88%, white);
+    border-color: color-mix(in srgb, var(--accent) 72%, white);
+    box-shadow:
+      inset 0 1px 0 var(--bevel),
+      0 6px 20px -8px color-mix(in srgb, var(--accent) 60%, transparent);
+  }
+}
+.btn-primary:active {
+  background: color-mix(in srgb, var(--accent) 88%, black);
+  border-color: color-mix(in srgb, var(--accent) 84%, black);
+  box-shadow:
+    inset 0 1px 0 var(--bevel),
+    var(--press);
 }
 
+/* 幽灵：无边框的次要动作，静止态文字要够对比，悬停才浮出边框。
+   它没有底，所以要抹掉顶缘受光，否则会浮出一条脏白线 */
 .btn-ghost {
   border-color: transparent;
   color: var(--mute);
-}
-.btn-ghost:hover {
-  color: var(--fg);
-  border-color: var(--line-strong);
   box-shadow: none;
-  transform: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .btn-ghost:not(:disabled):not([aria-disabled="true"]):hover {
+    color: var(--fg);
+    border-color: var(--line-strong);
+    background: color-mix(in srgb, var(--fg) 3%, transparent);
+  }
 }
 
+/*
+ * 小号：36px，与筛选行里 !h-9 的输入框齐平（原来 34px，同一排控件高矮差 2px）。
+ * 触摸设备上不保留紧凑形态 —— 36px 按不准，直接回到主尺寸。
+ */
 .btn-sm {
-  height: 2.125rem;
-  padding-inline: 0.875rem;
-  font-size: 0.8125rem;
+  --btn-h: 2.25rem;
+  --btn-px: 0.875rem;
+  --btn-fs: 0.8125rem;
+}
+@media (pointer: coarse) {
+  .btn-sm {
+    --btn-h: 2.75rem;
+    --btn-px: 1.125rem;
+    --btn-fs: 0.875rem;
+  }
 }
 
-.btn-danger:hover {
-  border-color: color-mix(in srgb, #e5484d 60%, transparent);
-  color: #e5484d;
+/* 方形图标钮：宽高相等、内距清零。主题切换这类只有 glyph 的按钮走它 */
+.btn-icon {
+  --btn-px: 0;
+  width: var(--btn-h);
+  flex: none;
+}
+
+/* 整行宽。这个类名全站用了 4 次却一直没有定义，按钮实际是内容宽度 */
+.btn-block {
+  width: 100%;
+}
+
+/*
+ * 危险动作的入口：静止态就带红。驳回、取消撮合这类按钮在扫视时就要能被认出来，
+ * 不能只有鼠标移上去才变红。
+ */
+.btn-danger {
+  color: color-mix(in srgb, var(--danger-ink) 80%, var(--fg));
+  border-color: color-mix(in srgb, var(--danger) 34%, var(--line-strong));
+}
+@media (hover: hover) and (pointer: fine) {
+  .btn-danger:not(:disabled):not([aria-disabled="true"]):hover {
+    color: var(--danger-ink);
+    border-color: color-mix(in srgb, var(--danger) 62%, transparent);
+    background: color-mix(in srgb, var(--danger) 8%, transparent);
+  }
+}
+.btn-danger:active {
+  background: color-mix(in srgb, var(--danger) 13%, transparent);
 }
 
 /* 危险操作的确认钮：与 btn-primary 同构的实心形态，仅用于不可逆动作的最终确认 */
 .btn-danger-solid {
-  background: #e5484d;
-  border-color: #e5484d;
-  color: #fff;
+  --btn-spin: var(--accent-ink);
+  background: var(--danger);
+  border-color: var(--danger);
+  color: var(--accent-ink);
+  box-shadow:
+    inset 0 1px 0 var(--bevel),
+    0 1px 3px color-mix(in srgb, var(--danger) 30%, transparent);
 }
-.btn-danger-solid:hover {
-  background: color-mix(in srgb, #e5484d 86%, black);
-  box-shadow: 0 8px 30px color-mix(in srgb, #e5484d 32%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .btn-danger-solid:not(:disabled):not([aria-disabled="true"]):hover {
+    background: color-mix(in srgb, var(--danger) 86%, black);
+    box-shadow:
+      inset 0 1px 0 var(--bevel),
+      0 6px 20px -8px color-mix(in srgb, var(--danger) 55%, transparent);
+  }
+}
+.btn-danger-solid:active {
+  background: color-mix(in srgb, var(--danger) 80%, black);
+  box-shadow:
+    inset 0 1px 0 var(--bevel),
+    var(--press);
+}
+
+/* ---------- 卡片式大按钮 ---------- */
+
+/*
+ * 整块可点的卡片（选身份、选方案这类）。容器形态继承 .card-2，这里只补三件事：
+ * 右上角的箭头暗示「点得进去」、按下沉一格、键盘焦点环。
+ * 直角大色块之所以显得生硬，缺的不是圆角（卡片本来就有 14px），而是「可以按」的信号。
+ */
+.card-btn {
+  position: relative;
+  cursor: pointer;
+  text-align: left;
+  outline: 2px solid transparent;
+  outline-offset: 3px;
+  transition:
+    border-color 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* 箭头：静止时退到卡片外沿之外 3px，悬停才滑进来。等宽字体，与标题的衬线形成对照，
+   也是全站「↗」同一套记号 */
+.card-btn .card-btn-arrow {
+  position: absolute;
+  top: 1.25rem;
+  right: 1.25rem;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1;
+  color: var(--dim);
+  opacity: 0;
+  transform: translate(-3px, 3px);
+  transition:
+    opacity 0.35s ease,
+    transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    color 0.35s ease;
+  pointer-events: none;
+}
+
+/*
+ * 下面几条选择器都写了两遍 .card-btn —— 故意的：卡片段的 button.card-2:hover
+ * 优先级是 (0,2,1)，不重复一次类名的话，这里的边框色和按下位移都会被它盖掉。
+ */
+@media (hover: hover) and (pointer: fine) {
+  .card-btn.card-btn:hover {
+    border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
+  }
+  .card-btn:hover .card-btn-arrow {
+    opacity: 1;
+    transform: none;
+    color: var(--accent-soft);
+  }
+}
+
+.card-btn.card-btn:active {
+  transform: translateY(1px);
+}
+
+.card-btn:focus-visible {
+  outline-color: var(--accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-btn,
+  .card-btn .card-btn-arrow {
+    transition: none;
+  }
+  .card-btn.card-btn:active {
+    transform: none;
+  }
 }
 
 /* ---------- 链接 ---------- */
@@ -330,11 +607,13 @@ a.row-item:hover {
   background: var(--surface-2);
 }
 
-/* 可点击的卡片：悬停抬起 2px + 边框加深（规范 §8：不要弹跳缩放） */
+/* 可点击的卡片：悬停抬起 2px + 边框加深（规范 §8：不要弹跳缩放）。
+   注意 button.card-2 原来漏了 —— 选身份的卡片按钮挂的正是 card-2，所以一直没有悬停反馈 */
 .card-hover:hover,
 a.card:hover,
 a.card-2:hover,
-button.card:hover {
+button.card:hover,
+button.card-2:hover {
   border-color: var(--line-strong);
   box-shadow: var(--card-shadow-hover);
   transform: translateY(-2px);
@@ -342,7 +621,8 @@ button.card:hover {
 .card-hover,
 a.card,
 a.card-2,
-button.card {
+button.card,
+button.card-2 {
   transition:
     border-color 0.45s cubic-bezier(0.22, 1, 0.36, 1),
     box-shadow 0.45s cubic-bezier(0.22, 1, 0.36, 1),
@@ -353,7 +633,8 @@ button.card {
   .card-hover:hover,
   a.card:hover,
   a.card-2:hover,
-  button.card:hover {
+  button.card:hover,
+  button.card-2:hover {
     transform: none;
   }
 }
@@ -445,20 +726,21 @@ button.card {
   letter-spacing: 0.18em;
   padding: 0.3rem 0.6rem;
   border: 1px solid var(--line-strong);
+  border-radius: var(--radius-chip);
   color: var(--mute);
   white-space: nowrap;
 }
 .badge-ok {
-  border-color: color-mix(in srgb, #46a758 45%, transparent);
-  color: #5eb96b;
+  border-color: color-mix(in srgb, var(--ok) 45%, transparent);
+  color: var(--ok-ink);
 }
 .badge-warn {
-  border-color: color-mix(in srgb, #f5a524 45%, transparent);
-  color: #e0a341;
+  border-color: color-mix(in srgb, var(--warn) 45%, transparent);
+  color: var(--warn-ink);
 }
 .badge-bad {
-  border-color: color-mix(in srgb, #e5484d 45%, transparent);
-  color: #e0666a;
+  border-color: color-mix(in srgb, var(--danger) 45%, transparent);
+  color: var(--danger-ink);
 }
 .badge-accent {
   border-color: color-mix(in srgb, var(--accent) 50%, transparent);
@@ -483,6 +765,7 @@ button.card {
   width: 100%;
   background: var(--surface-2);
   border: 1px solid var(--line-strong);
+  border-radius: var(--radius-btn);
   color: var(--fg);
   font-family: var(--font-serifcn);
   font-size: 0.9375rem;
@@ -513,6 +796,7 @@ input[type="checkbox"].ck {
   width: 1rem;
   height: 1rem;
   border: 1px solid var(--line-strong);
+  border-radius: 3px;
   background: var(--surface-2);
   display: inline-grid;
   place-content: center;

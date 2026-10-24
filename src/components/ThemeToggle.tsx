@@ -17,7 +17,7 @@ export default function ThemeToggle() {
       onClick={toggle}
       aria-label="切换明暗主题"
       title="切换明暗主题"
-      className="h-9 w-9 grid place-content-center rounded-lg border border-line text-mute hover:text-fg hover:border-line-strong transition-colors duration-300"
+      className="btn btn-sm btn-icon btn-ghost"
     >
       <span className="theme-sun text-[13px] leading-none">☀</span>
       <span className="theme-moon text-[13px] leading-none">☾</span>

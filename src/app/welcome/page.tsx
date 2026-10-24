@@ -25,14 +25,16 @@ export default async function WelcomePage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <form action={chooseRoleAction}>
             <input type="hidden" name="role" value="PARENT" />
-            <button className="card-2 p-6 w-full text-left hover:border-accent transition-colors cursor-pointer">
+            <button className="card-2 card-btn p-6 w-full">
+              <span className="card-btn-arrow" aria-hidden="true">↗</span>
               <p className="font-serifcn font-black text-xl">我是家长</p>
               <p className="text-[12.5px] text-dim mt-2">发布求教需求，挑选教员</p>
             </button>
           </form>
           <form action={chooseRoleAction}>
             <input type="hidden" name="role" value="TUTOR" />
-            <button className="card-2 p-6 w-full text-left hover:border-accent transition-colors cursor-pointer">
+            <button className="card-2 card-btn p-6 w-full">
+              <span className="card-btn-arrow" aria-hidden="true">↗</span>
               <p className="font-serifcn font-black text-xl">我是大学生</p>
               <p className="text-[12.5px] text-dim mt-2">认证后接单，开始带教</p>
             </button>
